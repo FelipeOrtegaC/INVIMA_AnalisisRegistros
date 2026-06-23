@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regulatory Intelligence OneView · Colombia · XY Pharma</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+</head>
+<body>
+
+  <!-- ============ LOGIN MODAL ============ -->
+  <div id="auth-overlay" class="auth-overlay">
+    <div class="auth-modal">
+      <div class="auth-brand">
+        <div class="brand-mark" style="width:44px;height:44px;font-size:17px;">RX</div>
+        <div>
+          <div class="brand-title" style="font-size:16px;">Regulatory Intelligence OneView</div>
+          <div class="brand-sub">Colombia · XY Pharma</div>
+        </div>
+      </div>
+
+      <!-- Tab switcher -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Iniciar sesión</button>
+        <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Crear cuenta</button>
+      </div>
+
+      <!-- ── LOGIN FORM ── -->
+      <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+        <div class="field-group">
+          <label for="l-username">Usuario</label>
+          <input id="l-username" type="text" placeholder="tu_usuario" autocomplete="username" required />
+          <div class="field-error" id="l-username-err"></div>
+        </div>
+        <div class="field-group">
+          <label for="l-password">Contraseña</label>
+          <input id="l-password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+          <div class="field-error" id="l-password-err"></div>
+        </div>
+        <div class="field-error auth-error" id="login-global-err"></div>
+        <button type="submit" class="btn-primary auth-submit" id="btn-login">Ingresar</button>
+      </form>
+
+      <!-- ── REGISTER FORM ── -->
+      <form id="form-register" class="auth-form" style="display:none" onsubmit="handleRegister(event)">
+        <div class="field-row-2">
+          <div class="field-group">
+            <label for="r-username">Usuario <span class="req">*</span></label>
+            <input id="r-username" type="text" placeholder="mi_usuario" autocomplete="username"
+                   oninput="liveValidate('r-username')" required />
+            <div class="field-hint">3–50 caracteres, letras/números/_</div>
+            <div class="field-error" id="r-username-err"></div>
+          </div>
+          <div class="field-group">
+            <label for="r-email">Correo electrónico <span class="req">*</span></label>
+            <input id="r-email" type="email" placeholder="nombre@ejemplo.com"
+                   oninput="liveValidate('r-email')" required />
+            <div class="field-error" id="r-email-err"></div>
+          </div>
+        </div>
+        <div class="field-row-2">
+          <div class="field-group">
+            <label for="r-nombre">Nombre completo <span class="req">*</span></label>
+            <input id="r-nombre" type="text" placeholder="Ana Pérez"
+                   oninput="liveValidate('r-nombre')" required />
+            <div class="field-error" id="r-nombre-err"></div>
+          </div>
+          <div class="field-group">
+            <label for="r-edad">Edad <span class="req">*</span></label>
+            <input id="r-edad" type="number" placeholder="30" min="1" max="120"
+                   oninput="liveValidate('r-edad')" required />
+            <div class="field-hint">Debe estar entre 1 y 120</div>
+            <div class="field-error" id="r-edad-err"></div>
+          </div>
+        </div>
+        <div class="field-row-2">
+          <div class="field-group">
+            <label for="r-password">Contraseña <span class="req">*</span></label>
+            <input id="r-password" type="password" placeholder="mínimo 8 caracteres"
+                   oninput="liveValidate('r-password')" autocomplete="new-password" required />
+            <div class="field-hint">Mínimo 8 caracteres, al menos 1 letra y 1 número</div>
+            <div class="field-error" id="r-password-err"></div>
+          </div>
+          <div class="field-group">
+            <label for="r-rol">Rol <span class="req">*</span></label>
+            <select id="r-rol">
+              <option value="viewer" selected>Viewer — consulta</option>
+              <option value="admin">Admin — gestión</option>
+            </select>
+            <div class="field-error" id="r-rol-err"></div>
+          </div>
+        </div>
+        <div class="field-error auth-error" id="register-global-err"></div>
+        <button type="submit" class="btn-primary auth-submit" id="btn-register">Crear cuenta</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark">RX</div>
+      <div class="brand-text">
+        <div class="brand-title">Regulatory Intelligence OneView</div>
+        <div class="brand-sub">Colombia · XY Pharma</div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="console">Consola CRUD</button>
+    </nav>
+    <div class="meta">
+      <span id="updated-date">—</span>
+      <div class="user-badge" id="user-badge" style="display:none">
+        <span class="user-avatar" id="user-avatar">?</span>
+        <span id="user-name-label">—</span>
+        <button class="btn-logout" id="btn-logout" onclick="handleLogout()">Cerrar sesión</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ KPI STRIP ============ -->
+  <section class="kpi-strip" id="kpi-strip">
+    <div class="kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Total medicamentos</div><div class="kpi-value" id="kpi-total">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">✓</div><div><div class="kpi-label">% Vigentes</div><div class="kpi-value" id="kpi-vigentes">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon kpi-icon-risk">!</div><div><div class="kpi-label">Riesgo Alto</div><div class="kpi-value" id="kpi-riesgo">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">$</div><div><div class="kpi-label">Avg Precio (COP)</div><div class="kpi-value" id="kpi-precio">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">▤</div><div><div class="kpi-label">Stock Total</div><div class="kpi-value" id="kpi-stock">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">↗</div><div><div class="kpi-label">Demanda mensual</div><div class="kpi-value" id="kpi-demanda">—</div></div></div>
+  </section>
+
+  <!-- ============ DASHBOARD VIEW ============ -->
+  <main class="view view-dashboard active" id="view-dashboard">
+    <!-- Sidebar filters -->
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <span>Filtros</span>
+        <button class="btn-reset" id="btn-reset">Reset</button>
+      </div>
+      <div class="filter">
+        <label>Categoría ATC</label>
+        <select id="f-atc" multiple size="4"></select>
+      </div>
+      <div class="filter">
+        <label>Titular</label>
+        <select id="f-titular" multiple size="4"></select>
+      </div>
+      <div class="filter">
+        <label>Tipo de Producto</label>
+        <select id="f-tipo" multiple size="3"></select>
+      </div>
+      <div class="filter">
+        <label>Estado Regulatorio</label>
+        <select id="f-estado" multiple size="3"></select>
+      </div>
+      <div class="filter">
+        <label>Vía de Administración</label>
+        <select id="f-via" multiple size="3"></select>
+      </div>
+      <div class="filter">
+        <label>Segmento Mercado</label>
+        <select id="f-segmento" multiple size="3"></select>
+      </div>
+      <div class="filter-count">
+        <span id="filter-count">— resultados</span>
+      </div>
+    </aside>
+
+    <!-- Center: core analytics -->
+    <section class="core">
+      <div class="card">
+        <div class="card-title">Regulatory Health</div>
+        <div id="chart-health" class="chart-sm"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Economic Simulation</div>
+        <div class="econ-cards">
+          <div class="econ-card">
+            <div class="econ-label">Precio Referencia</div>
+            <div class="econ-value" id="econ-precio">—</div>
+            <div class="econ-delta" id="econ-precio-delta">—</div>
+          </div>
+          <div class="econ-card">
+            <div class="econ-label">Costo Producción</div>
+            <div class="econ-value" id="econ-costo">—</div>
+            <div class="econ-delta" id="econ-costo-delta">—</div>
+          </div>
+          <div class="econ-card">
+            <div class="econ-label">Precio Proyectado</div>
+            <div class="econ-value" id="econ-proy">—</div>
+            <div class="econ-delta" id="econ-proy-delta">—</div>
+          </div>
+          <div class="econ-card">
+            <div class="econ-label">Margen Estimado</div>
+            <div class="econ-value" id="econ-margen">—</div>
+            <div class="econ-delta" id="econ-margen-delta">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Demanda vs Stock <span class="card-sub">(top 20)</span></div>
+        <div id="chart-demanda-stock" class="chart-md"></div>
+      </div>
+    </section>
+
+    <!-- Right: rankings -->
+    <aside class="rankings">
+      <div class="card">
+        <div class="card-title">Top Productos</div>
+        <div class="table-wrap">
+          <table class="rank-table" id="tbl-productos">
+            <thead><tr><th>Producto</th><th>ATC</th><th>Precio</th><th>Demanda</th><th>MS%</th><th>Riesgo</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top Titulares</div>
+        <div id="chart-titulares" class="chart-sm"></div>
+      </div>
+    </aside>
+
+    <!-- Bottom: trends -->
+    <section class="trends">
+      <div class="card">
+        <div class="card-title">Demanda Temporal</div>
+        <div id="chart-temporal" class="chart-md"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Inventory Efficiency <span class="card-sub">(días)</span></div>
+        <div id="chart-efficiency" class="chart-md"></div>
+      </div>
+      <div class="card card-wide">
+        <div class="card-title">Stock vs Demanda · Riesgo Regulatorio <span class="card-sub">(diferenciador)</span></div>
+        <div id="chart-scatter" class="chart-lg"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ CRUD CONSOLE VIEW ============ -->
+  <main class="view view-console" id="view-console">
+    <section class="card crud-card">
+      <div class="card-title">Consola CRUD · Query Builder</div>
+      <div class="crud-controls">
+        <div class="crud-row">
+          <label>Entidad</label>
+          <select id="crud-entity">
+            <option value="medicamento">medicamento</option>
+            <option value="principio_activo">principio_activo</option>
+            <option value="titular">titular</option>
+            <option value="clasificacion_atc">clasificacion_atc</option>
+            <option value="tiempo">tiempo</option>
+            <option value="inventario">inventario</option>
+            <option value="costos_precios">costos_precios</option>
+            <option value="simulacion_mercado">simulacion_mercado</option>
+          </select>
+          <label>Columna</label>
+          <select id="crud-col"></select>
+          <label>Operador</label>
+          <select id="crud-op">
+            <option value="=">=</option>
+            <option value="!=">!=</option>
+            <option value=">">&gt;</option>
+            <option value=">=">&gt;=</option>
+            <option value="<">&lt;</option>
+            <option value="<=">&lt;=</option>
+            <option value="LIKE">LIKE</option>
+            <option value="IS NULL">IS NULL</option>
+            <option value="IS NOT NULL">IS NOT NULL</option>
+          </select>
+          <label>Valor</label>
+          <input type="text" id="crud-val" placeholder="ej. CARDIOVASCULAR" />
+          <label>Limit</label>
+          <input type="number" id="crud-limit" value="50" min="1" max="1000" />
+          <button class="btn-primary" id="crud-run">Ejecutar</button>
+          <button class="btn-secondary" id="crud-export">Exportar CSV</button>
+        </div>
+        <div class="crud-row">
+          <label>Acción</label>
+          <select id="crud-action">
+            <option value="SELECT">SELECT (READ)</option>
+            <option value="INSERT">INSERT</option>
+            <option value="UPDATE">UPDATE</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <label>Payload (JSON)</label>
+          <input type="text" id="crud-payload" placeholder='{"producto":"...", "precio":1000}' style="flex:1" />
+          <button class="btn-secondary" id="crud-apply">Aplicar</button>
+        </div>
+        <div class="crud-sql">
+          <span class="sql-label">SQL generado:</span>
+          <code id="crud-sql">—</code>
+        </div>
+      </div>
+      <div class="crud-result">
+        <div class="result-head"><span id="crud-count">0 filas</span></div>
+        <div class="table-wrap">
+          <table class="rank-table" id="crud-table">
+            <thead><tr></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span>XY Pharma · Proyecto Académico Bases de Datos Avanzadas · Felipe Ortega</span>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

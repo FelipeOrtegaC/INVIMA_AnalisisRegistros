@@ -1,0 +1,17 @@
+# Core
+pandas>=2.2
+openpyxl>=3.1
+python-dotenv>=1.0
+
+# Database
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+
+# Web server + auth
+flask>=3.0
+passlib[bcrypt]>=1.7
+flask-cors>=4.0
+
+# Testing & lint (optional)
+pytest>=8.0
+ruff>=0.4
