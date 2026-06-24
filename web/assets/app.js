@@ -1,5 +1,5 @@
 /* ============================================================
-   Regulatory Intelligence OneView · Colombia · XY Pharma
+   Bayer · Market & Competitor Intelligence · Colombia
    Dashboard estático (Plotly + JS vanilla).
    Datos REALES del CUM (INVIMA) consumidos de la API datos.gov.co,
    consolidados por registro sanitario. Sin stock/costos/demanda simulados.
@@ -161,15 +161,16 @@ function hideAuthOverlay() { document.getElementById('auth-overlay').classList.r
 /* ============ DASHBOARD ============ */
 
 const COLORS = {
-  primary: '#1E5AA8',
-  primarySoft: '#E8F0FB',
-  positive: '#3FB57F',
+  primary: '#10384F',      // Bayer Blue (navy)
+  primarySoft: '#E7F0F4',
+  positive: '#66B512',     // Bayer Green
   warning: '#E8B547',
-  risk: '#D64545',
-  textSecondary: '#6B7280',
-  border: '#E5E9F0',
+  risk: '#D0021B',
+  cyan: '#0091DF',         // Bayer Cyan
+  textSecondary: '#5C6B72',
+  border: '#E2E8E2',
 };
-const ATC_PALETTE = ['#1E5AA8','#3FB57F','#E8B547','#D64545','#7C5CBF','#19A0A0','#E07B39','#5B8DEF','#9AAE2B','#C0467E','#5A6B7B','#2BB8C4','#B5852A','#8E44AD'];
+const ATC_PALETTE = ['#10384F','#66B512','#0091DF','#89D329','#1B6CB5','#00A3A3','#7BBF3A','#3D6E8E','#A6CE39','#2E8BC0','#557A2E','#0BA3D6','#8FB339','#145374'];
 
 const PLOTLY_LAYOUT_BASE = {
   margin: { t: 10, r: 10, b: 40, l: 50 },
@@ -418,13 +419,13 @@ function renderTopTitulares() {
 /* ============ Forma Farmacéutica ============ */
 function renderForma() {
   const pairs = topPairs(countBy(FILTERED, 'formafarmaceutica'), 12);
-  barH('chart-forma', pairs, '#7C5CBF');
+  barH('chart-forma', pairs, COLORS.cyan);
 }
 
 /* ============ Vía de Administración ============ */
 function renderVia() {
   const pairs = topPairs(countBy(FILTERED, 'viaadministracion'), 12);
-  barH('chart-via', pairs, '#19A0A0');
+  barH('chart-via', pairs, '#00A3A3');
 }
 
 /* ============ Próximos a vencer por año (DIFERENCIADOR) ============ */
@@ -507,19 +508,25 @@ function buildWhere(col, op, val) {
   if (op === 'IS NULL')      return { text: `${col} IS NULL`,      predicate: r => r[col] == null || r[col] === '' };
   if (op === 'IS NOT NULL')  return { text: `${col} IS NOT NULL`,  predicate: r => r[col] != null && r[col] !== '' };
   if (val === '')            return { text: '',                     predicate: () => true };
-  const numericVal = parseFloat(val);
-  const isNum = !isNaN(numericVal) && val.trim() !== '';
+
+  // Numérico solo si el valor ES un número completo (no "2026-05-25", que es fecha).
+  const isNum = /^-?\d+(\.\d+)?$/.test(val.trim());
   const text = `${col} ${op} ${isNum ? val : "'" + val.replace(/'/g, "''") + "'"}`;
+
+  // Orden válido para números Y para fechas/texto: las fechas ISO 'YYYY-MM-DD'
+  // se comparan lexicográficamente, que equivale al orden cronológico.
+  const bothNum = (a, b) => /^-?\d+(\.\d+)?$/.test(String(a).trim()) && /^-?\d+(\.\d+)?$/.test(String(b).trim());
+  const ord = (a, b, fn) => bothNum(a, b) ? fn(+a, +b) : fn(String(a), String(b));
   const cmp = {
     '=':  (a,b) => String(a).toLowerCase() === String(b).toLowerCase(),
     '!=': (a,b) => String(a).toLowerCase() !== String(b).toLowerCase(),
-    '>':  (a,b) => Number(a) >  Number(b),
-    '>=': (a,b) => Number(a) >= Number(b),
-    '<':  (a,b) => Number(a) <  Number(b),
-    '<=': (a,b) => Number(a) <= Number(b),
+    '>':  (a,b) => ord(a, b, (x,y) => x >  y),
+    '>=': (a,b) => ord(a, b, (x,y) => x >= y),
+    '<':  (a,b) => ord(a, b, (x,y) => x <  y),
+    '<=': (a,b) => ord(a, b, (x,y) => x <= y),
     'LIKE': (a,b) => String(a).toLowerCase().includes(String(b).toLowerCase().replace(/%/g, '')),
   }[op];
-  return { text, predicate: r => r[col] != null && cmp(r[col], isNum ? numericVal : val) };
+  return { text, predicate: r => r[col] != null && cmp(r[col], val) };
 }
 
 function applyCrud() {
