@@ -23,8 +23,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_EXCEL = PROJECT_ROOT / "data" / "CO_medicamentos_aprobados.xlsx"
 
 INSERT_ORDER = [
-    "principio_activo", "titular", "clasificacion_atc", "tiempo",
-    "medicamento", "inventario", "costos_precios", "simulacion_mercado",
+    "principio_activo", "titular", "clasificacion_atc", "tiempo", "medicamento",
 ]
 
 PK_COLUMNS = {
@@ -32,10 +31,7 @@ PK_COLUMNS = {
     "titular":            "titular_id",
     "clasificacion_atc":  "atc_code",
     "tiempo":             "fecha_id",
-    "medicamento":        "consecutivocum",
-    "inventario":         "consecutivocum",
-    "costos_precios":     "consecutivocum",
-    "simulacion_mercado": "consecutivocum",
+    "medicamento":        "registrosanitario",
 }
 
 
@@ -84,8 +80,7 @@ def truncate_all(engine):
     print("[ETL] Truncating all tables...")
     with engine.begin() as conn:
         conn.execute(text(
-            "TRUNCATE simulacion_mercado, costos_precios, inventario, "
-            "medicamento, tiempo, clasificacion_atc, titular, principio_activo "
+            "TRUNCATE medicamento, tiempo, clasificacion_atc, titular, principio_activo "
             "RESTART IDENTITY CASCADE"
         ))
 

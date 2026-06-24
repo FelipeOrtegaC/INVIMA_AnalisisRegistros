@@ -1,6 +1,8 @@
 /* ============================================================
    Regulatory Intelligence OneView · Colombia · XY Pharma
-   Static dashboard powered by Plotly + vanilla JS
+   Dashboard estático (Plotly + JS vanilla).
+   Datos REALES del CUM (INVIMA) consumidos de la API datos.gov.co,
+   consolidados por registro sanitario. Sin stock/costos/demanda simulados.
    ============================================================ */
 
 /* ============ AUTH ============ */
@@ -58,41 +60,31 @@ function showGlobalErr(formPrefix, msg) {
   if (el) { el.textContent = msg; el.classList.add('auth-error-show'); }
 }
 
-// ── Login ────────────────────────────────────────────────────────────────────
 async function handleLogin(event) {
   event.preventDefault();
   clearAuthErrors();
   const username = document.getElementById('l-username').value.trim();
   const password = document.getElementById('l-password').value;
-
   const btn = document.getElementById('btn-login');
-  btn.disabled = true;
-  btn.textContent = 'Ingresando…';
-
+  btn.disabled = true; btn.textContent = 'Ingresando…';
   try {
     const res  = await fetch('/api/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
     const body = await res.json();
-    if (body.ok) {
-      onAuthSuccess(body);
-    } else {
-      showGlobalErr('login', (body.errors || ['Error desconocido.']).join(' '));
-    }
+    if (body.ok) onAuthSuccess(body);
+    else showGlobalErr('login', (body.errors || ['Error desconocido.']).join(' '));
   } catch {
     showGlobalErr('login', 'No se pudo conectar con el servidor. ¿Está corriendo app_server.py?');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Ingresar';
+    btn.disabled = false; btn.textContent = 'Ingresar';
   }
 }
 
-// ── Register ─────────────────────────────────────────────────────────────────
 async function handleRegister(event) {
   event.preventDefault();
   clearAuthErrors();
-
   const fields = ['r-username','r-email','r-nombre','r-edad','r-password'];
   let hasErr = false;
   fields.forEach(id => {
@@ -109,11 +101,8 @@ async function handleRegister(event) {
     password: document.getElementById('r-password').value,
     rol:      document.getElementById('r-rol').value,
   };
-
   const btn = document.getElementById('btn-register');
-  btn.disabled = true;
-  btn.textContent = 'Creando cuenta…';
-
+  btn.disabled = true; btn.textContent = 'Creando cuenta…';
   try {
     const res  = await fetch('/api/auth/register', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -135,18 +124,15 @@ async function handleRegister(event) {
   } catch {
     showGlobalErr('register', 'No se pudo conectar con el servidor. ¿Está corriendo app_server.py?');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Crear cuenta';
+    btn.disabled = false; btn.textContent = 'Crear cuenta';
   }
 }
 
-// ── Logout ───────────────────────────────────────────────────────────────────
 async function handleLogout() {
   await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   showAuthOverlay();
 }
 
-// ── Session helpers ───────────────────────────────────────────────────────────
 async function checkAuth() {
   try {
     const res = await fetch('/api/auth/me');
@@ -155,29 +141,24 @@ async function checkAuth() {
       if (body.ok) { onAuthSuccess(body, false); return; }
     }
   } catch {
-    // server not available — hide overlay so the dashboard works in static mode
-    hideAuthOverlay();
+    hideAuthOverlay();   // server not available — static mode
     return;
   }
   showAuthOverlay();
 }
 
-function onAuthSuccess(user, redirect = true) {
+function onAuthSuccess(user) {
   document.getElementById('user-badge').style.display = '';
   document.getElementById('user-name-label').textContent = user.nombre || user.username;
   const av = document.getElementById('user-avatar');
   av.textContent = (user.nombre || user.username || '?').charAt(0).toUpperCase();
   hideAuthOverlay();
 }
+function showAuthOverlay() { document.getElementById('auth-overlay').classList.add('visible'); }
+function hideAuthOverlay() { document.getElementById('auth-overlay').classList.remove('visible'); }
 
-function showAuthOverlay() {
-  document.getElementById('auth-overlay').classList.add('visible');
-}
 
-function hideAuthOverlay() {
-  document.getElementById('auth-overlay').classList.remove('visible');
-}
-
+/* ============ DASHBOARD ============ */
 
 const COLORS = {
   primary: '#1E5AA8',
@@ -188,6 +169,7 @@ const COLORS = {
   textSecondary: '#6B7280',
   border: '#E5E9F0',
 };
+const ATC_PALETTE = ['#1E5AA8','#3FB57F','#E8B547','#D64545','#7C5CBF','#19A0A0','#E07B39','#5B8DEF','#9AAE2B','#C0467E','#5A6B7B','#2BB8C4','#B5852A','#8E44AD'];
 
 const PLOTLY_LAYOUT_BASE = {
   margin: { t: 10, r: 10, b: 40, l: 50 },
@@ -201,19 +183,17 @@ const PLOTLY_LAYOUT_BASE = {
 };
 const PLOTLY_CONFIG = { responsive: true, displaylogo: false, displayModeBar: false };
 
-let DATA = [];          // full dataset
-let FILTERED = [];      // current filtered view
-let FILTERS = {};       // active selections
-let CRUD_WORKING = [];  // mutable copy for CRUD operations
+let DATA = [];          // dataset completo (registros sanitarios reales)
+let FILTERED = [];      // vista filtrada actual
+let FILTERS = {};       // selecciones activas
+let CRUD_WORKING = [];  // copia mutable para la consola CRUD
+
 const ENTITY_SCHEMAS = {
-  medicamento: ['consecutivocum','registrosanitario','producto','estadoregistro','formafarmaceutica','viaadministracion','cantidad','unidadmedida','estado_regulatorio_final','segmento_mercado','tipo_producto_estimado','titular_normalizado','principio_activo_normalizado','atc','categoria_atc'],
-  principio_activo: ['principio_activo_normalizado'],
-  titular: ['titular_normalizado','tipo_titular'],
-  clasificacion_atc: ['atc','categoria_atc'],
-  tiempo: ['fechaexpedicion','fechainactivo','fechavencimiento'],
-  inventario: ['consecutivocum','producto','stock_actual','stock_minimo','stock_maximo'],
-  costos_precios: ['consecutivocum','producto','precio_referencia_cop','costo_produccion_estimado','precio_proyectado'],
-  simulacion_mercado: ['consecutivocum','producto','demanda_mensual_estimada','participacion_mercado','riesgo_regulatorio'],
+  medicamento: ['registrosanitario','producto','principio_activo','titular','fabricante','importador','segmento_mercado','formafarmaceutica','viaadministracion','concentracion','atc','categoria_atc','fechaexpedicion','fechavencimiento','num_presentaciones','modalidad'],
+  principio_activo: ['principio_activo'],
+  titular: ['titular'],
+  clasificacion_atc: ['atc','descripcionatc','categoria_atc'],
+  tiempo: ['fechaexpedicion','fechavencimiento'],
 };
 
 /* ============ BOOT ============ */
@@ -221,14 +201,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('updated-date').textContent =
     'Actualizado · ' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
 
-  // Check session before showing dashboard content
   await checkAuth();
 
   try {
     const res = await fetch('data.json');
     DATA = await res.json();
     CRUD_WORKING = JSON.parse(JSON.stringify(DATA));
-    console.log(`Loaded ${DATA.length} records`);
+    console.log(`Cargados ${DATA.length} registros`);
     initFilters();
     initTabs();
     initCrud();
@@ -237,8 +216,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Failed to load data.json', err);
     document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#D64545">
       <h2>Error cargando data.json</h2>
-      <p>Asegúrate de servir esta carpeta con un servidor HTTP local (no abrir como file://).</p>
-      <pre>python app_server.py</pre>
+      <p>Genera los datos desde la API y sirve la carpeta por HTTP:</p>
+      <pre>python -m etl.api_to_excel
+python -m etl.excel_to_json
+python app_server.py</pre>
     </div>`;
   }
 });
@@ -266,10 +247,9 @@ function initFilters() {
     sel.addEventListener('change', applyFilters);
   };
   fillSelect('f-atc',       uniq(DATA.map(d => d.categoria_atc)));
-  fillSelect('f-titular',   uniq(DATA.map(d => d.titular_normalizado)).slice(0, 200));
-  fillSelect('f-tipo',      uniq(DATA.map(d => d.tipo_producto_estimado)));
-  fillSelect('f-estado',    uniq(DATA.map(d => d.estado_regulatorio_final)));
-  fillSelect('f-via',       uniq(DATA.map(d => d.viaadministracion)));
+  fillSelect('f-titular',   uniq(DATA.map(d => d.titular)).slice(0, 300));
+  fillSelect('f-forma',     uniq(DATA.map(d => d.formafarmaceutica)).slice(0, 100));
+  fillSelect('f-via',       uniq(DATA.map(d => d.viaadministracion)).slice(0, 100));
   fillSelect('f-segmento',  uniq(DATA.map(d => d.segmento_mercado)));
 
   document.getElementById('btn-reset').addEventListener('click', () => {
@@ -287,9 +267,8 @@ function getSelectedValues(id) {
 function applyFilters() {
   FILTERS = {
     categoria_atc: getSelectedValues('f-atc'),
-    titular_normalizado: getSelectedValues('f-titular'),
-    tipo_producto_estimado: getSelectedValues('f-tipo'),
-    estado_regulatorio_final: getSelectedValues('f-estado'),
+    titular: getSelectedValues('f-titular'),
+    formafarmaceutica: getSelectedValues('f-forma'),
     viaadministracion: getSelectedValues('f-via'),
     segmento_mercado: getSelectedValues('f-segmento'),
   };
@@ -307,276 +286,188 @@ function applyFilters() {
 /* ============ RENDER ALL ============ */
 function renderAll() {
   renderKPIs();
-  renderRegulatoryHealth();
-  renderEconomicSimulation();
-  renderDemandaStock();
-  renderTopProductos();
+  renderCategoriaATC();
+  renderTopPrincipios();
+  renderAprobacionesPorAnio();
+  renderSegmento();
   renderTopTitulares();
-  renderDemandaTemporal();
-  renderInventoryEfficiency();
-  renderScatter();
+  renderForma();
+  renderVia();
+  renderVencimientos();
+  renderTablaRegistros();
 }
 
 /* ============ KPIs ============ */
 function renderKPIs() {
   const d = FILTERED;
   const total = d.length;
-  const vigentes = d.filter(x => (x.estadoregistro || '').toLowerCase() === 'vigente').length;
-  const riesgoAlto = d.filter(x => x.riesgo_regulatorio === 'ALTO').length;
-  const avgPrecio = mean(d.map(x => x.precio_referencia_cop).filter(Number.isFinite));
-  const stock = sum(d.map(x => x.stock_actual).filter(Number.isFinite));
-  const demanda = sum(d.map(x => x.demanda_mensual_estimada).filter(Number.isFinite));
+  const pa = new Set(d.map(x => x.principio_activo).filter(Boolean)).size;
+  const tit = new Set(d.map(x => x.titular).filter(Boolean)).size;
+  const atc = new Set(d.map(x => x.categoria_atc).filter(Boolean)).size;
+  const importado = d.filter(x => x.segmento_mercado === 'IMPORTADO').length;
+  const vencer = d.filter(x => Number.isFinite(x.dias_para_vencer) && x.dias_para_vencer >= 0 && x.dias_para_vencer <= 365).length;
 
   document.getElementById('kpi-total').textContent     = total.toLocaleString('es-CO');
-  document.getElementById('kpi-vigentes').textContent  = total ? ((vigentes / total) * 100).toFixed(1) + '%' : '—';
-  document.getElementById('kpi-riesgo').textContent    = riesgoAlto.toLocaleString('es-CO');
-  document.getElementById('kpi-precio').textContent    = avgPrecio ? '$ ' + Math.round(avgPrecio).toLocaleString('es-CO') : '—';
-  document.getElementById('kpi-stock').textContent     = abbreviate(stock);
-  document.getElementById('kpi-demanda').textContent   = abbreviate(demanda);
+  document.getElementById('kpi-pa').textContent        = pa.toLocaleString('es-CO');
+  document.getElementById('kpi-titulares').textContent = tit.toLocaleString('es-CO');
+  document.getElementById('kpi-atc').textContent       = atc.toLocaleString('es-CO');
+  document.getElementById('kpi-importado').textContent = total ? ((importado / total) * 100).toFixed(1) + '%' : '—';
+  document.getElementById('kpi-vencer').textContent    = vencer.toLocaleString('es-CO');
 }
 
-/* ============ REGULATORY HEALTH ============ */
-function renderRegulatoryHealth() {
-  const d = FILTERED;
-  const total = d.length || 1;
-  const activo   = d.filter(x => x.estado_regulatorio_final === 'ACTIVO').length / total * 100;
-  const inactivo = d.filter(x => x.estado_regulatorio_final === 'INACTIVO').length / total * 100;
-  const altoRiesgo = d.filter(x => x.riesgo_regulatorio === 'ALTO').length / total * 100;
-
-  const trace = {
-    type: 'bar', orientation: 'h',
-    x: [activo, inactivo, altoRiesgo],
-    y: ['% Activo', '% Inactivo', '% Alto Riesgo'],
-    marker: { color: [COLORS.positive, COLORS.textSecondary, COLORS.risk] },
-    text: [activo.toFixed(1)+'%', inactivo.toFixed(1)+'%', altoRiesgo.toFixed(1)+'%'],
-    textposition: 'outside',
-    hovertemplate: '%{y}: %{x:.1f}%<extra></extra>',
-  };
-  Plotly.react('chart-health', [trace], {
-    ...PLOTLY_LAYOUT_BASE,
-    margin: { t: 10, r: 50, b: 30, l: 90 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, range: [0, Math.max(100, activo + 10)] },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, automargin: true },
-  }, PLOTLY_CONFIG);
-}
-
-/* ============ ECONOMIC SIMULATION ============ */
-function renderEconomicSimulation() {
-  const d = FILTERED;
-  const precio  = mean(d.map(x => x.precio_referencia_cop).filter(Number.isFinite));
-  const costo   = mean(d.map(x => x.costo_produccion_estimado).filter(Number.isFinite));
-  const proy    = mean(d.map(x => x.precio_proyectado).filter(Number.isFinite));
-  const margen  = proy && costo ? ((proy - costo) / proy) * 100 : 0;
-
-  // baseline = full dataset
-  const basePrecio = mean(DATA.map(x => x.precio_referencia_cop).filter(Number.isFinite));
-  const baseCosto  = mean(DATA.map(x => x.costo_produccion_estimado).filter(Number.isFinite));
-  const baseProy   = mean(DATA.map(x => x.precio_proyectado).filter(Number.isFinite));
-  const baseMargen = baseProy && baseCosto ? ((baseProy - baseCosto) / baseProy) * 100 : 0;
-
-  setEcon('econ-precio', '$ ' + Math.round(precio || 0).toLocaleString('es-CO'), pctDelta(precio, basePrecio), 'econ-precio-delta');
-  setEcon('econ-costo',  '$ ' + Math.round(costo  || 0).toLocaleString('es-CO'), pctDelta(costo,  baseCosto),  'econ-costo-delta');
-  setEcon('econ-proy',   '$ ' + Math.round(proy   || 0).toLocaleString('es-CO'), pctDelta(proy,   baseProy),   'econ-proy-delta');
-  setEcon('econ-margen', margen.toFixed(1) + '%',                                pctDelta(margen, baseMargen), 'econ-margen-delta');
-}
-
-function setEcon(valueId, value, deltaObj, deltaId) {
-  document.getElementById(valueId).textContent = value;
-  const el = document.getElementById(deltaId);
-  el.textContent = deltaObj.text;
-  el.className = 'econ-delta ' + deltaObj.cls;
-}
-
-function pctDelta(curr, base) {
-  if (!base || !Number.isFinite(curr)) return { text: '—', cls: '' };
-  const d = ((curr - base) / base) * 100;
-  if (Math.abs(d) < 0.05) return { text: '≈ vs avg', cls: '' };
-  return { text: (d > 0 ? '▲ +' : '▼ ') + d.toFixed(1) + '% vs avg', cls: d > 0 ? 'delta-up' : 'delta-down' };
-}
-
-/* ============ DEMANDA VS STOCK ============ */
-function renderDemandaStock() {
-  const top = [...FILTERED]
-    .filter(x => Number.isFinite(x.demanda_mensual_estimada))
-    .sort((a,b) => b.demanda_mensual_estimada - a.demanda_mensual_estimada)
-    .slice(0, 20);
-  const labels = top.map((x,i) => truncate(x.producto, 22));
-  const demanda = top.map(x => x.demanda_mensual_estimada || 0);
-  const stock   = top.map(x => x.stock_actual || 0);
-
-  const traces = [
-    { type: 'bar', name: 'Demanda', x: labels, y: demanda, marker: { color: COLORS.primary }, hovertemplate: '%{x}<br>Demanda: %{y:,.0f}<extra></extra>' },
-    { type: 'scatter', mode: 'lines+markers', name: 'Stock', x: labels, y: stock, line: { color: COLORS.warning, width: 2 }, marker: { size: 6 }, yaxis: 'y2', hovertemplate: '%{x}<br>Stock: %{y:,.0f}<extra></extra>' },
-  ];
-  Plotly.react('chart-demanda-stock', traces, {
-    ...PLOTLY_LAYOUT_BASE,
-    showlegend: true,
-    legend: { orientation: 'h', x: 0, y: 1.12, font: { size: 11 } },
-    margin: { t: 30, r: 50, b: 80, l: 50 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, tickangle: -35, tickfont: { size: 9 } },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: 'Demanda', font: { size: 11 } } },
-    yaxis2: { overlaying: 'y', side: 'right', gridcolor: 'transparent', title: { text: 'Stock', font: { size: 11 } } },
-  }, PLOTLY_CONFIG);
-}
-
-/* ============ TOP PRODUCTOS ============ */
-function renderTopProductos() {
-  const top = [...FILTERED]
-    .filter(x => Number.isFinite(x.demanda_mensual_estimada) && Number.isFinite(x.precio_referencia_cop))
-    .map(x => ({...x, score: (x.demanda_mensual_estimada || 0) * (x.precio_referencia_cop || 0) }))
-    .sort((a,b) => b.score - a.score)
-    .slice(0, 12);
-  const tbody = document.querySelector('#tbl-productos tbody');
-  tbody.innerHTML = top.map(x => {
-    const ms = Number.isFinite(x.participacion_mercado) ? x.participacion_mercado.toFixed(1) + '%' : '—';
-    const r = x.riesgo_regulatorio || 'MEDIO';
-    const dot = r === 'ALTO' ? '🔴' : r === 'MEDIO' ? '🟡' : '🟢';
-    return `<tr>
-      <td title="${escapeAttr(x.producto)}">${escapeHtml(truncate(x.producto, 22))}</td>
-      <td>${escapeHtml(x.atc || '—')}</td>
-      <td class="num">$${Math.round(x.precio_referencia_cop || 0).toLocaleString('es-CO')}</td>
-      <td class="num">${(x.demanda_mensual_estimada || 0).toLocaleString('es-CO')}</td>
-      <td class="num">${ms}</td>
-      <td><span class="risk-dot risk-${r}">${dot} ${r}</span></td>
-    </tr>`;
-  }).join('');
-}
-
-/* ============ TOP TITULARES ============ */
-function renderTopTitulares() {
-  const counts = {};
-  FILTERED.forEach(x => {
-    const t = x.titular_normalizado || 'Sin titular';
-    counts[t] = (counts[t] || 0) + 1;
+/* ============ helpers de conteo ============ */
+function countBy(rows, key) {
+  const c = {};
+  rows.forEach(x => {
+    const v = x[key];
+    if (v == null || v === '') return;
+    c[v] = (c[v] || 0) + 1;
   });
-  const top = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 10).reverse();
+  return c;
+}
+function topPairs(counts, n) {
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n);
+}
+
+function barH(divId, pairs, color, layoutExtra = {}) {
+  const rev = [...pairs].reverse();
   const trace = {
     type: 'bar', orientation: 'h',
-    x: top.map(t => t[1]),
-    y: top.map(t => truncate(t[0], 26)),
-    marker: { color: COLORS.primary },
-    text: top.map(t => t[1]),
+    x: rev.map(p => p[1]),
+    y: rev.map(p => truncate(p[0], 28)),
+    marker: { color },
+    text: rev.map(p => p[1]),
     textposition: 'outside',
-    hovertemplate: '%{y}<br>%{x} productos<extra></extra>',
+    hovertemplate: '%{y}<br>%{x} registros<extra></extra>',
   };
-  Plotly.react('chart-titulares', [trace], {
+  Plotly.react(divId, [trace], {
     ...PLOTLY_LAYOUT_BASE,
-    margin: { t: 10, r: 30, b: 30, l: 140 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: '# productos', font: { size: 10 } } },
+    margin: { t: 10, r: 36, b: 28, l: 150 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: '# registros', font: { size: 10 } } },
     yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, automargin: true, tickfont: { size: 9 } },
+    ...layoutExtra,
   }, PLOTLY_CONFIG);
 }
 
-/* ============ DEMANDA TEMPORAL ============ */
-function renderDemandaTemporal() {
-  const buckets = {};
+function barV(divId, pairs, color, xtitle) {
+  const trace = {
+    type: 'bar',
+    x: pairs.map(p => p[0]),
+    y: pairs.map(p => p[1]),
+    marker: { color },
+    hovertemplate: '%{x}<br>%{y} registros<extra></extra>',
+  };
+  Plotly.react(divId, [trace], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, r: 16, b: 70, l: 50 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, tickangle: -35, tickfont: { size: 9 }, title: { text: xtitle, font: { size: 10 } } },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: '# registros', font: { size: 10 } } },
+  }, PLOTLY_CONFIG);
+}
+
+/* ============ Categoría ATC ============ */
+function renderCategoriaATC() {
+  const pairs = topPairs(countBy(FILTERED, 'categoria_atc'), 14);
+  barH('chart-atc', pairs, COLORS.primary);
+}
+
+/* ============ Top Principios Activos ============ */
+function renderTopPrincipios() {
+  const pairs = topPairs(countBy(FILTERED, 'principio_activo'), 15);
+  barH('chart-principios', pairs, COLORS.positive);
+}
+
+/* ============ Aprobaciones por Año ============ */
+function renderAprobacionesPorAnio() {
+  const c = {};
   FILTERED.forEach(x => {
     if (!x.fechaexpedicion) return;
-    const key = x.fechaexpedicion.slice(0, 7); // YYYY-MM
-    if (!buckets[key]) buckets[key] = { demanda: 0, stock: 0, precio: [], n: 0 };
-    buckets[key].demanda += x.demanda_mensual_estimada || 0;
-    buckets[key].stock   += x.stock_actual || 0;
-    if (Number.isFinite(x.precio_referencia_cop)) buckets[key].precio.push(x.precio_referencia_cop);
-    buckets[key].n++;
+    const y = String(x.fechaexpedicion).slice(0, 4);
+    if (!/^\d{4}$/.test(y)) return;
+    c[y] = (c[y] || 0) + 1;
   });
-  const months = Object.keys(buckets).sort();
-  // Group by year for cleaner view (monthly granularity is too sparse over 30+ yrs)
-  const byYear = {};
-  months.forEach(m => {
-    const y = m.slice(0, 4);
-    if (!byYear[y]) byYear[y] = { demanda: 0, stock: 0, precio: [], n: 0 };
-    byYear[y].demanda += buckets[m].demanda;
-    byYear[y].stock   += buckets[m].stock;
-    byYear[y].precio  = byYear[y].precio.concat(buckets[m].precio);
-    byYear[y].n      += buckets[m].n;
-  });
-  const years = Object.keys(byYear).sort().slice(-15); // last 15 years
-  const traces = [
-    { type: 'bar', name: 'Demanda', x: years, y: years.map(y => byYear[y].demanda), marker: { color: COLORS.primary } },
-    { type: 'bar', name: 'Stock',   x: years, y: years.map(y => byYear[y].stock),   marker: { color: COLORS.warning } },
-    { type: 'scatter', mode: 'lines+markers', name: 'Precio avg', yaxis: 'y2',
-      x: years, y: years.map(y => mean(byYear[y].precio)),
-      line: { color: COLORS.positive, width: 2 }, marker: { size: 6 } },
-  ];
-  Plotly.react('chart-temporal', traces, {
-    ...PLOTLY_LAYOUT_BASE,
-    barmode: 'group',
-    showlegend: true,
-    legend: { orientation: 'h', x: 0, y: 1.12, font: { size: 11 } },
-    margin: { t: 30, r: 60, b: 50, l: 50 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: 'Año de expedición', font: { size: 11 } } },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: 'Demanda / Stock', font: { size: 11 } } },
-    yaxis2: { overlaying: 'y', side: 'right', gridcolor: 'transparent', title: { text: 'Precio (COP)', font: { size: 11 } } },
-  }, PLOTLY_CONFIG);
+  const years = Object.keys(c).sort();
+  const pairs = years.map(y => [y, c[y]]);
+  barV('chart-temporal', pairs, COLORS.primary, 'Año de expedición');
 }
 
-/* ============ INVENTORY EFFICIENCY ============ */
-function renderInventoryEfficiency() {
-  const series = FILTERED
-    .filter(x => Number.isFinite(x.stock_actual) && Number.isFinite(x.demanda_mensual_estimada) && x.demanda_mensual_estimada > 0)
-    .map(x => ({
-      producto: x.producto,
-      dias: x.stock_actual / (x.demanda_mensual_estimada / 30),
-    }))
-    .sort((a,b) => b.dias - a.dias)
-    .slice(0, 50);
+/* ============ Nacional vs Importado (donut) ============ */
+function renderSegmento() {
+  const c = countBy(FILTERED, 'segmento_mercado');
+  const labels = Object.keys(c);
   const trace = {
-    type: 'scatter', mode: 'lines+markers',
-    x: series.map((_, i) => i + 1),
-    y: series.map(s => s.dias),
-    line: { color: COLORS.primary, width: 2 },
-    marker: { size: 4, color: series.map(s => s.dias > 90 ? COLORS.risk : s.dias < 15 ? COLORS.warning : COLORS.positive) },
-    text: series.map(s => s.producto),
-    hovertemplate: '%{text}<br>%{y:.0f} días<extra></extra>',
+    type: 'pie', hole: 0.55,
+    labels, values: labels.map(l => c[l]),
+    marker: { colors: labels.map(l => l === 'IMPORTADO' ? COLORS.warning : COLORS.primary) },
+    textinfo: 'label+percent', textposition: 'inside',
+    hovertemplate: '%{label}<br>%{value} registros (%{percent})<extra></extra>',
   };
-  const refLine = {
-    type: 'scatter', mode: 'lines',
-    x: [1, series.length], y: [30, 30],
-    line: { color: COLORS.textSecondary, dash: 'dash', width: 1 },
-    hoverinfo: 'skip',
-  };
-  Plotly.react('chart-efficiency', [trace, refLine], {
+  Plotly.react('chart-segmento', [trace], {
     ...PLOTLY_LAYOUT_BASE,
-    margin: { t: 10, r: 20, b: 40, l: 50 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: 'Producto (top 50 por días)', font: { size: 11 } } },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: 'Días de inventario', font: { size: 11 } } },
+    margin: { t: 10, r: 10, b: 10, l: 10 },
+    showlegend: true, legend: { orientation: 'h', y: -0.05, font: { size: 10 } },
   }, PLOTLY_CONFIG);
 }
 
-/* ============ SCATTER (DIFERENCIADOR) ============ */
-function renderScatter() {
-  const groups = { BAJO: [], MEDIO: [], ALTO: [] };
+/* ============ Top Titulares ============ */
+function renderTopTitulares() {
+  const pairs = topPairs(countBy(FILTERED, 'titular'), 10);
+  barH('chart-titulares', pairs, COLORS.primary, { margin: { t: 10, r: 30, b: 28, l: 140 } });
+}
+
+/* ============ Forma Farmacéutica ============ */
+function renderForma() {
+  const pairs = topPairs(countBy(FILTERED, 'formafarmaceutica'), 12);
+  barH('chart-forma', pairs, '#7C5CBF');
+}
+
+/* ============ Vía de Administración ============ */
+function renderVia() {
+  const pairs = topPairs(countBy(FILTERED, 'viaadministracion'), 12);
+  barH('chart-via', pairs, '#19A0A0');
+}
+
+/* ============ Próximos a vencer por año (DIFERENCIADOR) ============ */
+function renderVencimientos() {
+  const c = {};
+  const nowY = new Date().getFullYear();
   FILTERED.forEach(x => {
-    if (!Number.isFinite(x.stock_actual) || !Number.isFinite(x.demanda_mensual_estimada)) return;
-    const r = x.riesgo_regulatorio || 'MEDIO';
-    groups[r].push(x);
+    if (!x.fechavencimiento) return;
+    const y = String(x.fechavencimiento).slice(0, 4);
+    if (!/^\d{4}$/.test(y)) return;
+    c[y] = (c[y] || 0) + 1;
   });
-  const colorMap = { BAJO: COLORS.positive, MEDIO: COLORS.warning, ALTO: COLORS.risk };
-  const traces = Object.entries(groups).map(([r, items]) => ({
-    type: 'scatter', mode: 'markers', name: r,
-    x: items.map(x => x.stock_actual),
-    y: items.map(x => x.demanda_mensual_estimada),
-    text: items.map(x => `${x.producto}<br>${x.titular_normalizado || ''}<br>ATC: ${x.atc || ''}`),
-    marker: {
-      color: colorMap[r],
-      size: items.map(x => {
-        const p = Number.isFinite(x.participacion_mercado) ? x.participacion_mercado : 0;
-        // participacion_mercado is in 0..25 range (already a percentage)
-        return Math.min(26, Math.max(5, 5 + p * 0.9));
-      }),
-      opacity: 0.55,
-      line: { color: '#FFFFFF', width: 0.5 },
-    },
-    hovertemplate: '%{text}<br>Stock: %{x:,.0f}<br>Demanda: %{y:,.0f}<extra>%{fullData.name}</extra>',
-  }));
-  Plotly.react('chart-scatter', traces, {
+  const years = Object.keys(c).sort();
+  const trace = {
+    type: 'bar',
+    x: years, y: years.map(y => c[y]),
+    marker: { color: years.map(y => (+y <= nowY + 1 ? COLORS.risk : (+y <= nowY + 3 ? COLORS.warning : COLORS.positive))) },
+    hovertemplate: '%{x}<br>%{y} registros vencen<extra></extra>',
+  };
+  Plotly.react('chart-vencimientos', [trace], {
     ...PLOTLY_LAYOUT_BASE,
-    showlegend: true,
-    legend: { orientation: 'h', x: 0, y: 1.08, font: { size: 11 } },
-    margin: { t: 30, r: 20, b: 50, l: 60 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: 'Stock actual', font: { size: 11 } }, type: 'log' },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: 'Demanda mensual', font: { size: 11 } }, type: 'log' },
+    margin: { t: 10, r: 16, b: 50, l: 50 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: { text: 'Año de vencimiento', font: { size: 10 } } },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: { text: '# registros', font: { size: 10 } } },
   }, PLOTLY_CONFIG);
+}
+
+/* ============ Tabla de registros recientes ============ */
+function renderTablaRegistros() {
+  const top = [...FILTERED]
+    .sort((a, b) => String(b.fechaexpedicion || '').localeCompare(String(a.fechaexpedicion || '')))
+    .slice(0, 15);
+  const tbody = document.querySelector('#tbl-registros tbody');
+  tbody.innerHTML = top.map(x => `<tr>
+    <td title="${escapeAttr(x.producto)}">${escapeHtml(truncate(x.producto, 28))}</td>
+    <td title="${escapeAttr(x.principio_activo)}">${escapeHtml(truncate(x.principio_activo, 26))}</td>
+    <td title="${escapeAttr(x.titular)}">${escapeHtml(truncate(x.titular, 22))}</td>
+    <td>${escapeHtml(x.atc || '—')}</td>
+    <td>${escapeHtml(truncate(x.formafarmaceutica, 18))}</td>
+    <td class="num">${escapeHtml(x.fechaexpedicion || '—')}</td>
+    <td class="num">${(x.num_presentaciones || 0).toLocaleString('es-CO')}</td>
+    <td><span class="risk-dot ${x.segmento_mercado === 'IMPORTADO' ? 'risk-MEDIO' : 'risk-BAJO'}">${x.segmento_mercado === 'IMPORTADO' ? '🌎' : '🏭'} ${escapeHtml(x.segmento_mercado || '—')}</span></td>
+  </tr>`).join('');
 }
 
 /* ============ CRUD CONSOLE ============ */
@@ -589,7 +480,6 @@ function initCrud() {
   };
   entSel.addEventListener('change', fillCols);
   fillCols();
-
   document.getElementById('crud-run').addEventListener('click', runQuery);
   document.getElementById('crud-apply').addEventListener('click', applyCrud);
   document.getElementById('crud-export').addEventListener('click', exportCsv);
@@ -607,11 +497,9 @@ function runQuery() {
   const sql = `SELECT ${cols.join(', ')} FROM ${entity}${where.text ? ' WHERE ' + where.text : ''} LIMIT ${limit};`;
   document.getElementById('crud-sql').textContent = sql;
 
-  // Execute against in-memory dataset (each row of DATA is logically a JOINed view of the 8 entities)
   const rows = CRUD_WORKING.filter(r => where.predicate(r))
     .map(r => Object.fromEntries(cols.map(c => [c, r[c] != null ? r[c] : ''])))
     .slice(0, limit);
-
   renderCrudTable(cols, rows);
 }
 
@@ -641,7 +529,6 @@ function applyCrud() {
   const op      = document.getElementById('crud-op').value;
   const val     = document.getElementById('crud-val').value;
   const payloadStr = document.getElementById('crud-payload').value.trim();
-  const cols   = ENTITY_SCHEMAS[entity] || [];
 
   let sql = '', msg = '';
   let payload = {};
@@ -649,7 +536,6 @@ function applyCrud() {
     try { payload = JSON.parse(payloadStr); }
     catch (e) { alert('Payload JSON inválido: ' + e.message); return; }
   }
-
   const where = buildWhere(col, op, val);
 
   if (action === 'INSERT') {
@@ -673,10 +559,8 @@ function applyCrud() {
     runQuery();
     return;
   }
-
   document.getElementById('crud-sql').textContent = sql;
   document.getElementById('crud-count').textContent = msg;
-  // Refresh result table after mutation
   setTimeout(runQuery, 50);
 }
 
@@ -713,14 +597,6 @@ function exportCsv() {
 }
 
 /* ============ UTILS ============ */
-function mean(arr) { if (!arr.length) return 0; return arr.reduce((a,b) => a+b, 0) / arr.length; }
-function sum(arr)  { return arr.reduce((a,b) => a+b, 0); }
 function truncate(s, n) { s = String(s ?? ''); return s.length > n ? s.slice(0, n-1) + '…' : s; }
-function abbreviate(n) {
-  if (!Number.isFinite(n)) return '—';
-  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
-  return Math.round(n).toLocaleString('es-CO');
-}
 function escapeHtml(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function escapeAttr(s) { return escapeHtml(s).replace(/'/g, '&#39;'); }
