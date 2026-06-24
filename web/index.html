@@ -131,6 +131,7 @@
     </div>
     <nav class="tabs">
       <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="competidores">Competidores</button>
       <button class="tab" data-tab="console">Consola CRUD</button>
     </nav>
     <div class="meta">
@@ -242,6 +243,57 @@
         </div>
       </div>
     </section>
+  </main>
+
+  <!-- ============ EXPLORADOR DE COMPETIDORES VIEW ============ -->
+  <main class="view view-competidores" id="view-competidores">
+    <div class="comp-search">
+      <div class="field">
+        <label>Principio activo o producto</label>
+        <input id="comp-input" list="comp-list" placeholder="ej. DAPAGLIFLOZINA · ENZALUTAMIDA · FORXIGA" autocomplete="off" />
+        <datalist id="comp-list"></datalist>
+      </div>
+      <button class="btn-primary" id="comp-btn">Comparar competidores</button>
+    </div>
+
+    <div id="comp-placeholder" class="comp-empty">
+      Ingresa un <b>principio activo</b> (o el nombre de un <b>producto</b>) y pulsa
+      <b>Comparar competidores</b> para ver cuántos competidores y copias de esa molécula
+      existen en el mercado colombiano.
+    </div>
+
+    <div id="comp-results" style="display:none">
+      <section class="comp-kpis">
+        <div class="card kpi"><div class="kpi-icon">⚗</div><div><div class="kpi-label">Molécula</div><div class="kpi-value" id="comp-molecula" style="font-size:15px">—</div></div></div>
+        <div class="card kpi"><div class="kpi-icon">🏢</div><div><div class="kpi-label">Competidores</div><div class="kpi-value" id="comp-competidores">—</div></div></div>
+        <div class="card kpi"><div class="kpi-icon">®</div><div><div class="kpi-label">Con marca ®</div><div class="kpi-value" id="comp-marca">—</div></div></div>
+        <div class="card kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Sin marca (INN)</div><div class="kpi-value" id="comp-inn">—</div></div></div>
+      </section>
+
+      <section class="comp-grid">
+        <div class="card">
+          <div class="card-title">Registros por competidor <span class="card-sub">(top 15)</span></div>
+          <div id="comp-chart" class="chart-md"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Con marca ® vs sin marca (INN puro)</div>
+          <div id="comp-donut" class="chart-md"></div>
+          <div class="comp-note">El símbolo <b>®</b> indica una marca registrada en el nombre del producto:
+            es un proxy de "producto de marca" frente a genérico vendido por su INN, <b>no necesariamente
+            de "original vs copia"</b> (muchas copias llevan su propio ®).</div>
+        </div>
+      </section>
+
+      <section class="card card-wide">
+        <div class="card-title">Competidores y presentaciones <span class="card-sub" id="comp-count">—</span></div>
+        <div class="table-wrap">
+          <table class="rank-table" id="comp-table">
+            <thead><tr><th>Producto</th><th>Competidor (titular)</th><th>Segmento</th><th>Forma</th><th>Concentración</th><th>Expedición</th><th>Tipo</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
 
   <!-- ============ CRUD CONSOLE VIEW ============ -->
