@@ -104,7 +104,7 @@
       <div class="brand-mark">RX</div>
       <div class="brand-text">
         <div class="brand-title">Regulatory Intelligence OneView</div>
-        <div class="brand-sub">Colombia · XY Pharma</div>
+        <div class="brand-sub">Colombia · INVIMA · datos en vivo (CUM)</div>
       </div>
     </div>
     <nav class="tabs">
@@ -121,14 +121,14 @@
     </div>
   </header>
 
-  <!-- ============ KPI STRIP ============ -->
+  <!-- ============ KPI STRIP (solo métricas reales) ============ -->
   <section class="kpi-strip" id="kpi-strip">
-    <div class="kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Total medicamentos</div><div class="kpi-value" id="kpi-total">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">✓</div><div><div class="kpi-label">% Vigentes</div><div class="kpi-value" id="kpi-vigentes">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon kpi-icon-risk">!</div><div><div class="kpi-label">Riesgo Alto</div><div class="kpi-value" id="kpi-riesgo">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">$</div><div><div class="kpi-label">Avg Precio (COP)</div><div class="kpi-value" id="kpi-precio">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">▤</div><div><div class="kpi-label">Stock Total</div><div class="kpi-value" id="kpi-stock">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">↗</div><div><div class="kpi-label">Demanda mensual</div><div class="kpi-value" id="kpi-demanda">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Registros (aprobaciones)</div><div class="kpi-value" id="kpi-total">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">⚗</div><div><div class="kpi-label">Principios activos</div><div class="kpi-value" id="kpi-pa">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">🏢</div><div><div class="kpi-label">Titulares</div><div class="kpi-value" id="kpi-titulares">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">🗂</div><div><div class="kpi-label">Categorías ATC</div><div class="kpi-value" id="kpi-atc">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">🌎</div><div><div class="kpi-label">% Importado</div><div class="kpi-value" id="kpi-importado">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon kpi-icon-risk">⏳</div><div><div class="kpi-label">Vencen ≤ 12 meses</div><div class="kpi-value" id="kpi-vencer">—</div></div></div>
   </section>
 
   <!-- ============ DASHBOARD VIEW ============ -->
@@ -141,27 +141,23 @@
       </div>
       <div class="filter">
         <label>Categoría ATC</label>
-        <select id="f-atc" multiple size="4"></select>
+        <select id="f-atc" multiple size="5"></select>
       </div>
       <div class="filter">
         <label>Titular</label>
-        <select id="f-titular" multiple size="4"></select>
+        <select id="f-titular" multiple size="5"></select>
       </div>
       <div class="filter">
-        <label>Tipo de Producto</label>
-        <select id="f-tipo" multiple size="3"></select>
-      </div>
-      <div class="filter">
-        <label>Estado Regulatorio</label>
-        <select id="f-estado" multiple size="3"></select>
+        <label>Forma Farmacéutica</label>
+        <select id="f-forma" multiple size="4"></select>
       </div>
       <div class="filter">
         <label>Vía de Administración</label>
-        <select id="f-via" multiple size="3"></select>
+        <select id="f-via" multiple size="4"></select>
       </div>
       <div class="filter">
-        <label>Segmento Mercado</label>
-        <select id="f-segmento" multiple size="3"></select>
+        <label>Segmento</label>
+        <select id="f-segmento" multiple size="2"></select>
       </div>
       <div class="filter-count">
         <span id="filter-count">— resultados</span>
@@ -171,55 +167,27 @@
     <!-- Center: core analytics -->
     <section class="core">
       <div class="card">
-        <div class="card-title">Regulatory Health</div>
-        <div id="chart-health" class="chart-sm"></div>
+        <div class="card-title">Distribución por Categoría ATC</div>
+        <div id="chart-atc" class="chart-md"></div>
       </div>
-
       <div class="card">
-        <div class="card-title">Economic Simulation</div>
-        <div class="econ-cards">
-          <div class="econ-card">
-            <div class="econ-label">Precio Referencia</div>
-            <div class="econ-value" id="econ-precio">—</div>
-            <div class="econ-delta" id="econ-precio-delta">—</div>
-          </div>
-          <div class="econ-card">
-            <div class="econ-label">Costo Producción</div>
-            <div class="econ-value" id="econ-costo">—</div>
-            <div class="econ-delta" id="econ-costo-delta">—</div>
-          </div>
-          <div class="econ-card">
-            <div class="econ-label">Precio Proyectado</div>
-            <div class="econ-value" id="econ-proy">—</div>
-            <div class="econ-delta" id="econ-proy-delta">—</div>
-          </div>
-          <div class="econ-card">
-            <div class="econ-label">Margen Estimado</div>
-            <div class="econ-value" id="econ-margen">—</div>
-            <div class="econ-delta" id="econ-margen-delta">—</div>
-          </div>
-        </div>
+        <div class="card-title">Top Principios Activos <span class="card-sub">(top 15 por # registros)</span></div>
+        <div id="chart-principios" class="chart-md"></div>
       </div>
-
       <div class="card">
-        <div class="card-title">Demanda vs Stock <span class="card-sub">(top 20)</span></div>
-        <div id="chart-demanda-stock" class="chart-md"></div>
+        <div class="card-title">Aprobaciones por Año <span class="card-sub">(fecha de expedición)</span></div>
+        <div id="chart-temporal" class="chart-md"></div>
       </div>
     </section>
 
     <!-- Right: rankings -->
     <aside class="rankings">
       <div class="card">
-        <div class="card-title">Top Productos</div>
-        <div class="table-wrap">
-          <table class="rank-table" id="tbl-productos">
-            <thead><tr><th>Producto</th><th>ATC</th><th>Precio</th><th>Demanda</th><th>MS%</th><th>Riesgo</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
+        <div class="card-title">Nacional vs Importado</div>
+        <div id="chart-segmento" class="chart-sm"></div>
       </div>
       <div class="card">
-        <div class="card-title">Top Titulares</div>
+        <div class="card-title">Top Titulares <span class="card-sub">(top 10)</span></div>
         <div id="chart-titulares" class="chart-sm"></div>
       </div>
     </aside>
@@ -227,16 +195,29 @@
     <!-- Bottom: trends -->
     <section class="trends">
       <div class="card">
-        <div class="card-title">Demanda Temporal</div>
-        <div id="chart-temporal" class="chart-md"></div>
+        <div class="card-title">Top Formas Farmacéuticas</div>
+        <div id="chart-forma" class="chart-md"></div>
       </div>
       <div class="card">
-        <div class="card-title">Inventory Efficiency <span class="card-sub">(días)</span></div>
-        <div id="chart-efficiency" class="chart-md"></div>
+        <div class="card-title">Top Vías de Administración</div>
+        <div id="chart-via" class="chart-md"></div>
       </div>
       <div class="card card-wide">
-        <div class="card-title">Stock vs Demanda · Riesgo Regulatorio <span class="card-sub">(diferenciador)</span></div>
-        <div id="chart-scatter" class="chart-lg"></div>
+        <div class="card-title">Registros próximos a vencer por año <span class="card-sub">(diferenciador · solo con fecha de vencimiento)</span></div>
+        <div id="chart-vencimientos" class="chart-lg"></div>
+      </div>
+    </section>
+
+    <!-- Full-width: tabla de registros -->
+    <section class="table-section">
+      <div class="card card-wide">
+        <div class="card-title">Registros más recientes <span class="card-sub">(top 15)</span></div>
+        <div class="table-wrap">
+          <table class="rank-table" id="tbl-registros">
+            <thead><tr><th>Producto</th><th>Principio activo</th><th>Titular</th><th>ATC</th><th>Forma</th><th>Expedición</th><th>Presentaciones</th><th>Segmento</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>
@@ -254,9 +235,6 @@
             <option value="titular">titular</option>
             <option value="clasificacion_atc">clasificacion_atc</option>
             <option value="tiempo">tiempo</option>
-            <option value="inventario">inventario</option>
-            <option value="costos_precios">costos_precios</option>
-            <option value="simulacion_mercado">simulacion_mercado</option>
           </select>
           <label>Columna</label>
           <select id="crud-col"></select>
@@ -288,7 +266,7 @@
             <option value="DELETE">DELETE</option>
           </select>
           <label>Payload (JSON)</label>
-          <input type="text" id="crud-payload" placeholder='{"producto":"...", "precio":1000}' style="flex:1" />
+          <input type="text" id="crud-payload" placeholder='{"producto":"...", "titular":"..."}' style="flex:1" />
           <button class="btn-secondary" id="crud-apply">Aplicar</button>
         </div>
         <div class="crud-sql">
@@ -309,7 +287,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>XY Pharma · Proyecto Académico Bases de Datos Avanzadas · Felipe Ortega</span>
+    <span>XY Pharma · Proyecto Académico Bases de Datos Avanzadas · Felipe Ortega · Fuente: datos.gov.co (CUM/INVIMA, en vivo)</span>
   </footer>
 
   <script src="assets/app.js"></script>

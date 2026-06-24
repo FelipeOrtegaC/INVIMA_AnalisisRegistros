@@ -215,8 +215,48 @@ def serve_static(path):
     return send_from_directory(WEB_DIR, "index.html")
 
 
+# ── Refresco de datos desde la API (PREVIO a servir la web) ───────────────────
+def ensure_data_fresh():
+    """Antes de servir el dashboard, extrae el CUM desde la API y consolida
+    web/data.json (la ruta que alimenta el dashboard). Usa una caché de frescura
+    para no re-descargar en cada arranque.
+
+    Controles por entorno:
+        REFRESH_ON_START=false      -> nunca refresca, sirve lo que exista.
+        REFRESH_MAX_AGE_HOURS=24    -> refresca si data.json es más viejo que esto
+                                       (0 = forzar siempre).
+    """
+    import time
+    data_json = os.path.join(WEB_DIR, "data.json")
+
+    if os.getenv("REFRESH_ON_START", "true").lower() != "true":
+        print("  [datos] REFRESH_ON_START=false -> sirvo data.json existente.")
+        return
+
+    max_age_h = float(os.getenv("REFRESH_MAX_AGE_HOURS", "24"))
+    if os.path.exists(data_json):
+        age_h = (time.time() - os.path.getmtime(data_json)) / 3600
+        if age_h < max_age_h:
+            print(f"  [datos] data.json fresco ({age_h:.1f} h) -> omito extracción "
+                  f"(forzar: REFRESH_MAX_AGE_HOURS=0 o borra web/data.json).")
+            return
+
+    try:
+        from etl import api_to_excel, excel_to_json
+        print("  [datos] Extrayendo CUM desde la API (previo a servir la web)…")
+        api_to_excel.refresh()      # API -> data/CO_medicamentos_aprobados.xlsx
+        excel_to_json.main()        # Excel -> web/data.json
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [datos] Aviso: no se pudo refrescar desde la API ({exc}). "
+              f"Sirvo el data.json que haya.")
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    # Evita ejecutar la extracción dos veces bajo el auto-reloader de Flask debug.
+    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+        ensure_data_fresh()
+
     port = int(os.getenv("PORT", 8050))
     debug = os.getenv("DASH_DEBUG", "true").lower() == "true"
     print(f"  Servidor corriendo en http://localhost:{port}")

@@ -3,7 +3,9 @@
 **XY Pharma · Proyecto académico — Bases de Datos Avanzadas**
 **Autor:** Felipe Ortega
 
-Tablero web one-page que consolida en una sola vista el estado regulatorio, comercial y operativo del portafolio de medicamentos aprobados por **INVIMA** para el mercado colombiano. Construido sobre un modelo relacional normalizado de 8 entidades en PostgreSQL, alimentado por un dataset enriquecido de 1.100 registros.
+Tablero web one-page que consolida en una sola vista la **inteligencia regulatoria** del portafolio de medicamentos aprobados por **INVIMA** para el mercado colombiano. Los datos se consumen **en vivo desde la API de Datos Abiertos** (dataset CUM `i7cb-raxc` en datos.gov.co), se consolidan por registro sanitario (~9.655 aprobaciones reales) y alimentan un modelo relacional normalizado de 5 entidades en PostgreSQL.
+
+> **Solo datos reales.** Se eliminaron los campos simulados de stock / costos / demanda / riesgo que existían en el snapshot de prueba; el dashboard ahora analiza únicamente las columnas que entrega la API (titulares, principios activos, ATC, formas, vías, fechas de expedición/vencimiento, nacional vs importado).
 
 ---
 
@@ -54,23 +56,29 @@ python -m venv .venv
 # source .venv/bin/activate     # Mac/Linux
 pip install -r requirements.txt
 
-# 2. Configurar credenciales
+# 2. (opcional) Configurar credenciales de PostgreSQL
 cp .env.example .env            # edita .env con tus datos de PostgreSQL
 
-# 3. Crear base de datos y tablas
+# 3. Extraer los datos REALES desde la API del CUM (INVIMA)
+python -m etl.api_to_excel      # API -> data/CO_medicamentos_aprobados.xlsx
+python -m etl.excel_to_json     # Excel -> web/data.json (alimenta el dashboard)
+
+# 4. (opcional · solo si usas PostgreSQL) Crear BD, tablas y cargar
 createdb xy_pharma
 psql -d xy_pharma -f sql/ddl.sql
 psql -d xy_pharma -f sql/indexes.sql
 psql -d xy_pharma -f sql/seed_queries.sql
 psql -d xy_pharma -f sql/ddl_users.sql   # tablas de usuarios y auditoría
-
-# 4. Cargar datos
 python -m etl.loader --truncate-and-load
 
 # 5. Arrancar el servidor
 python app_server.py
 # abre http://localhost:8050
 ```
+
+> 🔄 **Refresco automático:** `app_server.py` ejecuta el paso 3 **antes de servir** la web
+> si `web/data.json` no existe o tiene más de 24 h (configurable con `REFRESH_ON_START`
+> y `REFRESH_MAX_AGE_HOURS`). Así el dashboard siempre parte de datos frescos de la API.
 
 ### Opción B — Solo dashboard (sin PostgreSQL, sin autenticación)
 
@@ -149,7 +157,7 @@ xy_pharma_dashboard/
 
 ---
 
-## 🧬 Modelo de datos (8 entidades)
+## 🧬 Modelo de datos (5 entidades)
 
 | Tabla | PK | Tipo | Relación |
 |---|---|---|---|
@@ -157,10 +165,9 @@ xy_pharma_dashboard/
 | `titular` | `titular_id` | Catálogo | 1:N con medicamento |
 | `clasificacion_atc` | `atc_code` | Catálogo | 1:N con medicamento |
 | `tiempo` | `fecha_id` | Catálogo | 1:N con medicamento |
-| `medicamento` | `consecutivocum` | Hecho central | — |
-| `inventario` | `inventario_id` | Satélite | 1:1 con medicamento |
-| `costos_precios` | `costo_id` | Satélite | 1:1 con medicamento |
-| `simulacion_mercado` | `simulacion_id` | Satélite | 1:1 con medicamento |
+| `medicamento` | `registrosanitario` | Hecho central | — |
+
+> Las 3 tablas satélite (`inventario`, `costos_precios`, `simulacion_mercado`) se **eliminaron**: contenían únicamente datos simulados de prueba.
 
 Ver `sql/ddl.sql` para el DDL completo con CHECK, FK y políticas `ON UPDATE/DELETE`.
 
@@ -193,9 +200,10 @@ pytest tests/
 
 ## 📦 Dataset
 
-- Fuente: **INVIMA** — Registros Sanitarios CUM (open data).
-- Volumen: 1.100 medicamentos aprobados en Colombia.
-- 12 columnas originales + 15 columnas derivadas/simuladas (stock, costos, demanda, riesgo).
+- Fuente: **INVIMA** — Código Único de Medicamentos (CUM), API Socrata `i7cb-raxc` en datos.gov.co (en vivo).
+- Volumen bruto: ~157.000 filas CUM → consolidadas a **~9.655 registros sanitarios** (una fila por aprobación).
+- **Solo columnas reales** de la API (sin stock/costos/demanda/riesgo simulados). Campos derivados de forma fiable: `segmento_mercado` (rol FABRICANTE→Nacional / IMPORTADOR→Importado), `categoria_atc` (nivel 1 del ATC), `num_presentaciones` (CUM por registro), `dias_para_vencer`.
+- El snapshot simulado previo se conserva como respaldo en `data/CO_medicamentos_aprobados_SIMULADO.bak.xlsx`.
 
 ---
 
