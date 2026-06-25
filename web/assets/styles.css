@@ -90,10 +90,11 @@ html, body {
 .view.active { display: grid; }
 .view-dashboard {
   grid-template-columns: 220px 1fr 360px;
-  grid-template-rows: auto auto;
+  align-items: start;
   grid-template-areas:
-    "sidebar core rankings"
-    "trends trends trends";
+    "sidebar core   rankings"
+    "sidebar trends trends"
+    "sidebar table  table";
 }
 .view-console { display: none; padding: 20px 24px; }
 .view-console.active { display: block; }
@@ -105,6 +106,7 @@ html, body {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
 }
 .trends .card-wide { grid-column: 1 / -1; }
+.table-section { grid-area: table; }
 
 /* ============ CARDS ============ */
 .card {
@@ -278,7 +280,8 @@ html, body {
       "sidebar"
       "core"
       "rankings"
-      "trends";
+      "trends"
+      "table";
   }
   .sidebar { position: static; max-height: none; }
   .trends { grid-template-columns: 1fr; }
