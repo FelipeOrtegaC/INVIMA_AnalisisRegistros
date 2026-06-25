@@ -212,6 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initFilters();
     initTabs();
     initCrud();
+    initCompetidores();
     applyFilters();
   } catch (err) {
     console.error('Failed to load data.json', err);
@@ -601,6 +602,106 @@ function exportCsv() {
   const a = document.createElement('a');
   a.href = url; a.download = 'crud_export.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ============ EXPLORADOR DE COMPETIDORES ============ */
+function initCompetidores() {
+  // Autocompletado con las moléculas (principio activo) distintas.
+  const list = document.getElementById('comp-list');
+  if (list) {
+    list.innerHTML = uniq(DATA.map(d => d.principio_activo))
+      .map(v => `<option value="${escapeAttr(v)}"></option>`).join('');
+  }
+  document.getElementById('comp-btn').addEventListener('click', searchCompetidores);
+  document.getElementById('comp-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); searchCompetidores(); }
+  });
+}
+
+function hasMarca(d) { return (d.producto || '').includes('®'); }
+
+function searchCompetidores() {
+  const termRaw = document.getElementById('comp-input').value.trim();
+  if (!termRaw) return;
+  const term = termRaw.toUpperCase();
+
+  // 1) Coincidencia por molécula (principio activo, incluye combinaciones).
+  let rows = DATA.filter(d => (d.principio_activo || '').toUpperCase().includes(term));
+  let label = termRaw.toUpperCase();
+
+  // 2) Si no hay, resolver por nombre de producto -> moléculas de esos productos.
+  if (!rows.length) {
+    const prodHits = DATA.filter(d => (d.producto || '').toUpperCase().includes(term));
+    const mols = [...new Set(prodHits.map(d => d.principio_activo).filter(Boolean))];
+    if (mols.length) {
+      rows = DATA.filter(d => mols.includes(d.principio_activo));
+      label = mols.length === 1 ? mols[0] : `${mols.length} moléculas · "${termRaw}"`;
+    }
+  } else {
+    const mols = [...new Set(rows.map(d => d.principio_activo).filter(Boolean))];
+    if (mols.length > 1) label = `${termRaw.toUpperCase()} (${mols.length} variantes/combinaciones)`;
+  }
+  renderCompetidores(rows, label);
+}
+
+function renderCompetidores(rows, label) {
+  const placeholder = document.getElementById('comp-placeholder');
+  const results = document.getElementById('comp-results');
+
+  if (!rows.length) {
+    results.style.display = 'none';
+    placeholder.style.display = '';
+    placeholder.innerHTML = `Sin coincidencias para ese principio activo o producto.
+      Prueba con otro término (ej. <b>DAPAGLIFLOZINA</b>, <b>ENZALUTAMIDA</b>, <b>RIOCIGUAT</b>).`;
+    return;
+  }
+  placeholder.style.display = 'none';
+  results.style.display = '';
+
+  const competidores = new Set(rows.map(r => r.titular).filter(Boolean)).size;
+  const marca = rows.filter(hasMarca).length;
+  const inn = rows.length - marca;
+  const pct = rows.length ? Math.round(marca * 100 / rows.length) : 0;
+
+  document.getElementById('comp-molecula').textContent = truncate(label, 34);
+  document.getElementById('comp-molecula').title = label;
+  document.getElementById('comp-competidores').textContent = competidores.toLocaleString('es-CO');
+  document.getElementById('comp-marca').textContent = `${marca}  (${pct}%)`;
+  document.getElementById('comp-inn').textContent = `${inn}  (${100 - pct}%)`;
+  document.getElementById('comp-count').textContent =
+    `${rows.length} registros · ${competidores} competidores`;
+
+  // Barras: registros por competidor (top 15)
+  const porComp = topPairs(countBy(rows, 'titular'), 15);
+  barH('comp-chart', porComp, COLORS.primary);
+
+  // Dona: con marca ® vs sin marca
+  Plotly.react('comp-donut', [{
+    type: 'pie', hole: 0.55,
+    labels: ['Con marca ®', 'Sin marca (INN)'],
+    values: [marca, inn],
+    marker: { colors: [COLORS.positive, '#9AA7AD'] },
+    textinfo: 'label+percent', textposition: 'inside',
+    hovertemplate: '%{label}<br>%{value} registros (%{percent})<extra></extra>',
+  }], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, r: 10, b: 10, l: 10 },
+    showlegend: true, legend: { orientation: 'h', y: -0.05, font: { size: 10 } },
+  }, PLOTLY_CONFIG);
+
+  // Tabla de competidores y presentaciones
+  const ordered = [...rows].sort((a, b) =>
+    String(a.titular || '').localeCompare(String(b.titular || '')) ||
+    String(a.producto || '').localeCompare(String(b.producto || '')));
+  document.querySelector('#comp-table tbody').innerHTML = ordered.map(r => `<tr>
+    <td title="${escapeAttr(r.producto)}">${escapeHtml(truncate(r.producto, 30))}</td>
+    <td title="${escapeAttr(r.titular)}">${escapeHtml(truncate(r.titular, 26))}</td>
+    <td>${escapeHtml(r.segmento_mercado || '—')}</td>
+    <td>${escapeHtml(truncate(r.formafarmaceutica, 18))}</td>
+    <td>${escapeHtml(r.concentracion || '—')}</td>
+    <td class="num">${escapeHtml(r.fechaexpedicion || '—')}</td>
+    <td>${hasMarca(r) ? '<span class="badge-marca">Marca ®</span>' : '<span class="badge-inn">INN</span>'}</td>
+  </tr>`).join('');
 }
 
 /* ============ UTILS ============ */
