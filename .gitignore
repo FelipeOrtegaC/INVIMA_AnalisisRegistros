@@ -7,3 +7,7 @@ venv/
 .idea/
 *.log
 .DS_Store
+
+# Respaldo local del snapshot simulado (no versionar)
+*.bak.xlsx
+.claude/

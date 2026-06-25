@@ -1,6 +1,6 @@
-# Regulatory Intelligence OneView · Colombia
+# Bayer · Market & Competitor Intelligence · Colombia
 
-**XY Pharma · Proyecto académico — Bases de Datos Avanzadas**
+**Bayer · Proyecto académico — Bases de Datos Avanzadas**
 **Autor:** Felipe Ortega
 
 Tablero web one-page que consolida en una sola vista la **inteligencia regulatoria** del portafolio de medicamentos aprobados por **INVIMA** para el mercado colombiano. Los datos se consumen **en vivo desde la API de Datos Abiertos** (dataset CUM `i7cb-raxc` en datos.gov.co), se consolidan por registro sanitario (~9.655 aprobaciones reales) y alimentan un modelo relacional normalizado de 5 entidades en PostgreSQL.

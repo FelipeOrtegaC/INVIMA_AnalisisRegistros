@@ -1,5 +1,5 @@
 /* ============================================================
-   Regulatory Intelligence OneView · Colombia · XY Pharma
+   Bayer · Market & Competitor Intelligence · Colombia
    Dashboard estático (Plotly + JS vanilla).
    Datos REALES del CUM (INVIMA) consumidos de la API datos.gov.co,
    consolidados por registro sanitario. Sin stock/costos/demanda simulados.
@@ -161,15 +161,16 @@ function hideAuthOverlay() { document.getElementById('auth-overlay').classList.r
 /* ============ DASHBOARD ============ */
 
 const COLORS = {
-  primary: '#1E5AA8',
-  primarySoft: '#E8F0FB',
-  positive: '#3FB57F',
+  primary: '#10384F',      // Bayer Blue (navy)
+  primarySoft: '#E7F0F4',
+  positive: '#66B512',     // Bayer Green
   warning: '#E8B547',
-  risk: '#D64545',
-  textSecondary: '#6B7280',
-  border: '#E5E9F0',
+  risk: '#D0021B',
+  cyan: '#0091DF',         // Bayer Cyan
+  textSecondary: '#5C6B72',
+  border: '#E2E8E2',
 };
-const ATC_PALETTE = ['#1E5AA8','#3FB57F','#E8B547','#D64545','#7C5CBF','#19A0A0','#E07B39','#5B8DEF','#9AAE2B','#C0467E','#5A6B7B','#2BB8C4','#B5852A','#8E44AD'];
+const ATC_PALETTE = ['#10384F','#66B512','#0091DF','#89D329','#1B6CB5','#00A3A3','#7BBF3A','#3D6E8E','#A6CE39','#2E8BC0','#557A2E','#0BA3D6','#8FB339','#145374'];
 
 const PLOTLY_LAYOUT_BASE = {
   margin: { t: 10, r: 10, b: 40, l: 50 },
@@ -211,6 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initFilters();
     initTabs();
     initCrud();
+    initCompetidores();
     applyFilters();
   } catch (err) {
     console.error('Failed to load data.json', err);
@@ -418,13 +420,13 @@ function renderTopTitulares() {
 /* ============ Forma Farmacéutica ============ */
 function renderForma() {
   const pairs = topPairs(countBy(FILTERED, 'formafarmaceutica'), 12);
-  barH('chart-forma', pairs, '#7C5CBF');
+  barH('chart-forma', pairs, COLORS.cyan);
 }
 
 /* ============ Vía de Administración ============ */
 function renderVia() {
   const pairs = topPairs(countBy(FILTERED, 'viaadministracion'), 12);
-  barH('chart-via', pairs, '#19A0A0');
+  barH('chart-via', pairs, '#00A3A3');
 }
 
 /* ============ Próximos a vencer por año (DIFERENCIADOR) ============ */
@@ -507,19 +509,25 @@ function buildWhere(col, op, val) {
   if (op === 'IS NULL')      return { text: `${col} IS NULL`,      predicate: r => r[col] == null || r[col] === '' };
   if (op === 'IS NOT NULL')  return { text: `${col} IS NOT NULL`,  predicate: r => r[col] != null && r[col] !== '' };
   if (val === '')            return { text: '',                     predicate: () => true };
-  const numericVal = parseFloat(val);
-  const isNum = !isNaN(numericVal) && val.trim() !== '';
+
+  // Numérico solo si el valor ES un número completo (no "2026-05-25", que es fecha).
+  const isNum = /^-?\d+(\.\d+)?$/.test(val.trim());
   const text = `${col} ${op} ${isNum ? val : "'" + val.replace(/'/g, "''") + "'"}`;
+
+  // Orden válido para números Y para fechas/texto: las fechas ISO 'YYYY-MM-DD'
+  // se comparan lexicográficamente, que equivale al orden cronológico.
+  const bothNum = (a, b) => /^-?\d+(\.\d+)?$/.test(String(a).trim()) && /^-?\d+(\.\d+)?$/.test(String(b).trim());
+  const ord = (a, b, fn) => bothNum(a, b) ? fn(+a, +b) : fn(String(a), String(b));
   const cmp = {
     '=':  (a,b) => String(a).toLowerCase() === String(b).toLowerCase(),
     '!=': (a,b) => String(a).toLowerCase() !== String(b).toLowerCase(),
-    '>':  (a,b) => Number(a) >  Number(b),
-    '>=': (a,b) => Number(a) >= Number(b),
-    '<':  (a,b) => Number(a) <  Number(b),
-    '<=': (a,b) => Number(a) <= Number(b),
+    '>':  (a,b) => ord(a, b, (x,y) => x >  y),
+    '>=': (a,b) => ord(a, b, (x,y) => x >= y),
+    '<':  (a,b) => ord(a, b, (x,y) => x <  y),
+    '<=': (a,b) => ord(a, b, (x,y) => x <= y),
     'LIKE': (a,b) => String(a).toLowerCase().includes(String(b).toLowerCase().replace(/%/g, '')),
   }[op];
-  return { text, predicate: r => r[col] != null && cmp(r[col], isNum ? numericVal : val) };
+  return { text, predicate: r => r[col] != null && cmp(r[col], val) };
 }
 
 function applyCrud() {
@@ -594,6 +602,106 @@ function exportCsv() {
   const a = document.createElement('a');
   a.href = url; a.download = 'crud_export.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ============ EXPLORADOR DE COMPETIDORES ============ */
+function initCompetidores() {
+  // Autocompletado con las moléculas (principio activo) distintas.
+  const list = document.getElementById('comp-list');
+  if (list) {
+    list.innerHTML = uniq(DATA.map(d => d.principio_activo))
+      .map(v => `<option value="${escapeAttr(v)}"></option>`).join('');
+  }
+  document.getElementById('comp-btn').addEventListener('click', searchCompetidores);
+  document.getElementById('comp-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); searchCompetidores(); }
+  });
+}
+
+function hasMarca(d) { return (d.producto || '').includes('®'); }
+
+function searchCompetidores() {
+  const termRaw = document.getElementById('comp-input').value.trim();
+  if (!termRaw) return;
+  const term = termRaw.toUpperCase();
+
+  // 1) Coincidencia por molécula (principio activo, incluye combinaciones).
+  let rows = DATA.filter(d => (d.principio_activo || '').toUpperCase().includes(term));
+  let label = termRaw.toUpperCase();
+
+  // 2) Si no hay, resolver por nombre de producto -> moléculas de esos productos.
+  if (!rows.length) {
+    const prodHits = DATA.filter(d => (d.producto || '').toUpperCase().includes(term));
+    const mols = [...new Set(prodHits.map(d => d.principio_activo).filter(Boolean))];
+    if (mols.length) {
+      rows = DATA.filter(d => mols.includes(d.principio_activo));
+      label = mols.length === 1 ? mols[0] : `${mols.length} moléculas · "${termRaw}"`;
+    }
+  } else {
+    const mols = [...new Set(rows.map(d => d.principio_activo).filter(Boolean))];
+    if (mols.length > 1) label = `${termRaw.toUpperCase()} (${mols.length} variantes/combinaciones)`;
+  }
+  renderCompetidores(rows, label);
+}
+
+function renderCompetidores(rows, label) {
+  const placeholder = document.getElementById('comp-placeholder');
+  const results = document.getElementById('comp-results');
+
+  if (!rows.length) {
+    results.style.display = 'none';
+    placeholder.style.display = '';
+    placeholder.innerHTML = `Sin coincidencias para ese principio activo o producto.
+      Prueba con otro término (ej. <b>DAPAGLIFLOZINA</b>, <b>ENZALUTAMIDA</b>, <b>RIOCIGUAT</b>).`;
+    return;
+  }
+  placeholder.style.display = 'none';
+  results.style.display = '';
+
+  const competidores = new Set(rows.map(r => r.titular).filter(Boolean)).size;
+  const marca = rows.filter(hasMarca).length;
+  const inn = rows.length - marca;
+  const pct = rows.length ? Math.round(marca * 100 / rows.length) : 0;
+
+  document.getElementById('comp-molecula').textContent = truncate(label, 34);
+  document.getElementById('comp-molecula').title = label;
+  document.getElementById('comp-competidores').textContent = competidores.toLocaleString('es-CO');
+  document.getElementById('comp-marca').textContent = `${marca}  (${pct}%)`;
+  document.getElementById('comp-inn').textContent = `${inn}  (${100 - pct}%)`;
+  document.getElementById('comp-count').textContent =
+    `${rows.length} registros · ${competidores} competidores`;
+
+  // Barras: registros por competidor (top 15)
+  const porComp = topPairs(countBy(rows, 'titular'), 15);
+  barH('comp-chart', porComp, COLORS.primary);
+
+  // Dona: con marca ® vs sin marca
+  Plotly.react('comp-donut', [{
+    type: 'pie', hole: 0.55,
+    labels: ['Con marca ®', 'Sin marca (INN)'],
+    values: [marca, inn],
+    marker: { colors: [COLORS.positive, '#9AA7AD'] },
+    textinfo: 'label+percent', textposition: 'inside',
+    hovertemplate: '%{label}<br>%{value} registros (%{percent})<extra></extra>',
+  }], {
+    ...PLOTLY_LAYOUT_BASE,
+    margin: { t: 10, r: 10, b: 10, l: 10 },
+    showlegend: true, legend: { orientation: 'h', y: -0.05, font: { size: 10 } },
+  }, PLOTLY_CONFIG);
+
+  // Tabla de competidores y presentaciones
+  const ordered = [...rows].sort((a, b) =>
+    String(a.titular || '').localeCompare(String(b.titular || '')) ||
+    String(a.producto || '').localeCompare(String(b.producto || '')));
+  document.querySelector('#comp-table tbody').innerHTML = ordered.map(r => `<tr>
+    <td title="${escapeAttr(r.producto)}">${escapeHtml(truncate(r.producto, 30))}</td>
+    <td title="${escapeAttr(r.titular)}">${escapeHtml(truncate(r.titular, 26))}</td>
+    <td>${escapeHtml(r.segmento_mercado || '—')}</td>
+    <td>${escapeHtml(truncate(r.formafarmaceutica, 18))}</td>
+    <td>${escapeHtml(r.concentracion || '—')}</td>
+    <td class="num">${escapeHtml(r.fechaexpedicion || '—')}</td>
+    <td>${hasMarca(r) ? '<span class="badge-marca">Marca ®</span>' : '<span class="badge-inn">INN</span>'}</td>
+  </tr>`).join('');
 }
 
 /* ============ UTILS ============ */

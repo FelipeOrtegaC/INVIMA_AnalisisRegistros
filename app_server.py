@@ -1,5 +1,5 @@
 """
-app_server.py — Servidor Flask para Regulatory Intelligence OneView
+app_server.py — Servidor Flask para Bayer Market & Competitor Intelligence
 Sirve el frontend estático de web/ y expone endpoints de autenticación.
 
 Arranque: python app_server.py

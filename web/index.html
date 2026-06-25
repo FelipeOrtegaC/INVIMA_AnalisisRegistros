@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Regulatory Intelligence OneView · Colombia · XY Pharma</title>
+  <title>Bayer · Inteligencia de Mercado y Competidores · Colombia</title>
   <link rel="stylesheet" href="assets/styles.css" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -14,10 +14,21 @@
   <div id="auth-overlay" class="auth-overlay">
     <div class="auth-modal">
       <div class="auth-brand">
-        <div class="brand-mark" style="width:44px;height:44px;font-size:17px;">RX</div>
+        <div class="brand-mark" style="width:46px;height:46px;">
+          <svg viewBox="0 0 100 100" width="46" height="46" role="img" aria-label="Bayer">
+            <defs><linearGradient id="bayerRingAuth" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#66B512"/><stop offset="1" stop-color="#0091DF"/>
+            </linearGradient></defs>
+            <circle cx="50" cy="50" r="44" fill="#fff" stroke="url(#bayerRingAuth)" stroke-width="7"/>
+            <g fill="#10384F" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="17" text-anchor="middle" dominant-baseline="central">
+              <text x="22" y="50">B</text><text x="36" y="50">A</text><text x="50" y="50">Y</text><text x="64" y="50">E</text><text x="78" y="50">R</text>
+              <text x="50" y="22">B</text><text x="50" y="36">A</text><text x="50" y="64">E</text><text x="50" y="78">R</text>
+            </g>
+          </svg>
+        </div>
         <div>
-          <div class="brand-title" style="font-size:16px;">Regulatory Intelligence OneView</div>
-          <div class="brand-sub">Colombia · XY Pharma</div>
+          <div class="brand-title" style="font-size:16px;">Market &amp; Competitor Intelligence</div>
+          <div class="brand-sub">Bayer · Colombia · Datos CUM (INVIMA)</div>
         </div>
       </div>
 
@@ -101,14 +112,26 @@
   <!-- ============ HEADER ============ -->
   <header class="app-header">
     <div class="brand">
-      <div class="brand-mark">RX</div>
+      <div class="brand-mark">
+        <svg viewBox="0 0 100 100" width="42" height="42" role="img" aria-label="Bayer">
+          <defs><linearGradient id="bayerRing" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#66B512"/><stop offset="1" stop-color="#0091DF"/>
+          </linearGradient></defs>
+          <circle cx="50" cy="50" r="44" fill="#fff" stroke="url(#bayerRing)" stroke-width="7"/>
+          <g fill="#10384F" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="17" text-anchor="middle" dominant-baseline="central">
+            <text x="22" y="50">B</text><text x="36" y="50">A</text><text x="50" y="50">Y</text><text x="64" y="50">E</text><text x="78" y="50">R</text>
+            <text x="50" y="22">B</text><text x="50" y="36">A</text><text x="50" y="64">E</text><text x="50" y="78">R</text>
+          </g>
+        </svg>
+      </div>
       <div class="brand-text">
-        <div class="brand-title">Regulatory Intelligence OneView</div>
-        <div class="brand-sub">Colombia · INVIMA · datos en vivo (CUM)</div>
+        <div class="brand-title">Market &amp; Competitor Intelligence</div>
+        <div class="brand-sub">Bayer · Colombia · Datos CUM (INVIMA, en vivo)</div>
       </div>
     </div>
     <nav class="tabs">
       <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="competidores">Competidores</button>
       <button class="tab" data-tab="console">Consola CRUD</button>
     </nav>
     <div class="meta">
@@ -123,10 +146,10 @@
 
   <!-- ============ KPI STRIP (solo métricas reales) ============ -->
   <section class="kpi-strip" id="kpi-strip">
-    <div class="kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Registros (aprobaciones)</div><div class="kpi-value" id="kpi-total">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">⚗</div><div><div class="kpi-label">Principios activos</div><div class="kpi-value" id="kpi-pa">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">🏢</div><div><div class="kpi-label">Titulares</div><div class="kpi-value" id="kpi-titulares">—</div></div></div>
-    <div class="kpi"><div class="kpi-icon">🗂</div><div><div class="kpi-label">Categorías ATC</div><div class="kpi-value" id="kpi-atc">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Registros en mercado</div><div class="kpi-value" id="kpi-total">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">⚗</div><div><div class="kpi-label">Moléculas</div><div class="kpi-value" id="kpi-pa">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">🏢</div><div><div class="kpi-label">Competidores</div><div class="kpi-value" id="kpi-titulares">—</div></div></div>
+    <div class="kpi"><div class="kpi-icon">🗂</div><div><div class="kpi-label">Áreas terapéuticas</div><div class="kpi-value" id="kpi-atc">—</div></div></div>
     <div class="kpi"><div class="kpi-icon">🌎</div><div><div class="kpi-label">% Importado</div><div class="kpi-value" id="kpi-importado">—</div></div></div>
     <div class="kpi"><div class="kpi-icon kpi-icon-risk">⏳</div><div><div class="kpi-label">Vencen ≤ 12 meses</div><div class="kpi-value" id="kpi-vencer">—</div></div></div>
   </section>
@@ -144,7 +167,7 @@
         <select id="f-atc" multiple size="5"></select>
       </div>
       <div class="filter">
-        <label>Titular</label>
+        <label>Competidor (laboratorio)</label>
         <select id="f-titular" multiple size="5"></select>
       </div>
       <div class="filter">
@@ -167,15 +190,15 @@
     <!-- Center: core analytics -->
     <section class="core">
       <div class="card">
-        <div class="card-title">Distribución por Categoría ATC</div>
+        <div class="card-title">Mercado por Área Terapéutica <span class="card-sub">(ATC)</span></div>
         <div id="chart-atc" class="chart-md"></div>
       </div>
       <div class="card">
-        <div class="card-title">Top Principios Activos <span class="card-sub">(top 15 por # registros)</span></div>
+        <div class="card-title">Top Moléculas <span class="card-sub">(top 15 por # registros)</span></div>
         <div id="chart-principios" class="chart-md"></div>
       </div>
       <div class="card">
-        <div class="card-title">Aprobaciones por Año <span class="card-sub">(fecha de expedición)</span></div>
+        <div class="card-title">Dinámica de aprobaciones por año <span class="card-sub">(entrada de competencia)</span></div>
         <div id="chart-temporal" class="chart-md"></div>
       </div>
     </section>
@@ -187,7 +210,7 @@
         <div id="chart-segmento" class="chart-sm"></div>
       </div>
       <div class="card">
-        <div class="card-title">Top Titulares <span class="card-sub">(top 10)</span></div>
+        <div class="card-title">Top Competidores <span class="card-sub">(laboratorios · top 10)</span></div>
         <div id="chart-titulares" class="chart-sm"></div>
       </div>
     </aside>
@@ -203,7 +226,7 @@
         <div id="chart-via" class="chart-md"></div>
       </div>
       <div class="card card-wide">
-        <div class="card-title">Registros próximos a vencer por año <span class="card-sub">(diferenciador · solo con fecha de vencimiento)</span></div>
+        <div class="card-title">Vencimientos de registro por año <span class="card-sub">(oportunidades competitivas · solo con fecha de vencimiento)</span></div>
         <div id="chart-vencimientos" class="chart-lg"></div>
       </div>
     </section>
@@ -211,15 +234,66 @@
     <!-- Full-width: tabla de registros -->
     <section class="table-section">
       <div class="card card-wide">
-        <div class="card-title">Registros más recientes <span class="card-sub">(top 15)</span></div>
+        <div class="card-title">Movimientos recientes del mercado <span class="card-sub">(últimas aprobaciones · top 15)</span></div>
         <div class="table-wrap">
           <table class="rank-table" id="tbl-registros">
-            <thead><tr><th>Producto</th><th>Principio activo</th><th>Titular</th><th>ATC</th><th>Forma</th><th>Expedición</th><th>Presentaciones</th><th>Segmento</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Molécula</th><th>Competidor</th><th>ATC</th><th>Forma</th><th>Expedición</th><th>Presentaciones</th><th>Segmento</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
     </section>
+  </main>
+
+  <!-- ============ EXPLORADOR DE COMPETIDORES VIEW ============ -->
+  <main class="view view-competidores" id="view-competidores">
+    <div class="comp-search">
+      <div class="field">
+        <label>Principio activo o producto</label>
+        <input id="comp-input" list="comp-list" placeholder="ej. DAPAGLIFLOZINA · ENZALUTAMIDA · FORXIGA" autocomplete="off" />
+        <datalist id="comp-list"></datalist>
+      </div>
+      <button class="btn-primary" id="comp-btn">Comparar competidores</button>
+    </div>
+
+    <div id="comp-placeholder" class="comp-empty">
+      Ingresa un <b>principio activo</b> (o el nombre de un <b>producto</b>) y pulsa
+      <b>Comparar competidores</b> para ver cuántos competidores y copias de esa molécula
+      existen en el mercado colombiano.
+    </div>
+
+    <div id="comp-results" style="display:none">
+      <section class="comp-kpis">
+        <div class="card kpi"><div class="kpi-icon">⚗</div><div><div class="kpi-label">Molécula</div><div class="kpi-value" id="comp-molecula" style="font-size:15px">—</div></div></div>
+        <div class="card kpi"><div class="kpi-icon">🏢</div><div><div class="kpi-label">Competidores</div><div class="kpi-value" id="comp-competidores">—</div></div></div>
+        <div class="card kpi"><div class="kpi-icon">®</div><div><div class="kpi-label">Con marca ®</div><div class="kpi-value" id="comp-marca">—</div></div></div>
+        <div class="card kpi"><div class="kpi-icon">℞</div><div><div class="kpi-label">Sin marca (INN)</div><div class="kpi-value" id="comp-inn">—</div></div></div>
+      </section>
+
+      <section class="comp-grid">
+        <div class="card">
+          <div class="card-title">Registros por competidor <span class="card-sub">(top 15)</span></div>
+          <div id="comp-chart" class="chart-md"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Con marca ® vs sin marca (INN puro)</div>
+          <div id="comp-donut" class="chart-md"></div>
+          <div class="comp-note">El símbolo <b>®</b> indica una marca registrada en el nombre del producto:
+            es un proxy de "producto de marca" frente a genérico vendido por su INN, <b>no necesariamente
+            de "original vs copia"</b> (muchas copias llevan su propio ®).</div>
+        </div>
+      </section>
+
+      <section class="card card-wide">
+        <div class="card-title">Competidores y presentaciones <span class="card-sub" id="comp-count">—</span></div>
+        <div class="table-wrap">
+          <table class="rank-table" id="comp-table">
+            <thead><tr><th>Producto</th><th>Competidor (titular)</th><th>Segmento</th><th>Forma</th><th>Concentración</th><th>Expedición</th><th>Tipo</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
 
   <!-- ============ CRUD CONSOLE VIEW ============ -->
@@ -287,7 +361,7 @@
   </main>
 
   <footer class="app-footer">
-    <span>XY Pharma · Proyecto Académico Bases de Datos Avanzadas · Felipe Ortega · Fuente: datos.gov.co (CUM/INVIMA, en vivo)</span>
+    <span>Bayer · Market &amp; Competitor Intelligence · Proyecto Académico Bases de Datos Avanzadas · Felipe Ortega · Fuente: datos.gov.co (CUM/INVIMA, en vivo)</span>
   </footer>
 
   <script src="assets/app.js"></script>
