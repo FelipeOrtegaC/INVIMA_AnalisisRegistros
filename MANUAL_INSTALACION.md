@@ -207,7 +207,19 @@ psql -U postgres -d xy_pharma -f sql\ddl.sql
 psql -U postgres -d xy_pharma -f sql/ddl.sql
 ```
 
-### 4.3 Crear los índices
+### 4.3 Crear las tablas de autenticación (REQUERIDO para el login)
+
+Este paso es **obligatorio** para poder registrarse e iniciar sesión en la aplicación. Crea las tablas `usuario` y `audit_log`. Si lo omites, el login y el registro fallarán con un error de tabla inexistente.
+
+```bash
+# Windows
+psql -U postgres -d xy_pharma -f sql\ddl_users.sql
+
+# Ubuntu
+psql -U postgres -d xy_pharma -f sql/ddl_users.sql
+```
+
+### 4.4 Crear los índices
 
 ```bash
 # Windows
@@ -217,7 +229,7 @@ psql -U postgres -d xy_pharma -f sql\indexes.sql
 psql -U postgres -d xy_pharma -f sql/indexes.sql
 ```
 
-### 4.4 Crear las vistas analíticas (opcional)
+### 4.5 Crear las vistas analíticas (opcional)
 
 ```bash
 # Windows
@@ -233,7 +245,7 @@ Verifica que las tablas se crearon correctamente:
 psql -U postgres -d xy_pharma -c "\dt"
 ```
 
-Debes ver 5 tablas: `principio_activo`, `titular`, `clasificacion_atc`, `tiempo`, `medicamento`.
+Debes ver **7 tablas**: las 5 del CUM (`principio_activo`, `titular`, `clasificacion_atc`, `tiempo`, `medicamento`) más las 2 de autenticación (`usuario`, `audit_log`).
 
 ---
 
@@ -370,9 +382,21 @@ http://localhost:8050
 | **Competidores** | Búsqueda por molécula o producto, análisis de competencia ® vs INN |
 | **Consola CRUD** | Consultas SELECT / INSERT / UPDATE / DELETE con generador de payloads JSON |
 
-### Crear el primer usuario administrador
+### Crear el primer usuario e iniciar sesión
 
-En la pantalla de Login, haz clic en **Registrarse** y completa el formulario. El primer usuario puede asignarse el rol `admin`.
+No existe un usuario semilla: el primer acceso se crea desde la propia aplicación.
+
+1. En la pantalla de Login, haz clic en **Registrarse**.
+2. Completa el formulario respetando las validaciones del servidor:
+   - **username**: 3 a 50 caracteres alfanuméricos o guión bajo (`_`).
+   - **email**: formato válido (`usuario@dominio.com`).
+   - **password**: mínimo 8 caracteres, con al menos una letra y un número.
+   - **nombre**: entre 2 y 100 caracteres.
+   - **edad**: número entero entre 1 y 120.
+   - **rol**: debe ser exactamente `admin` o `viewer` (no se aceptan otros valores).
+3. Al registrarte quedas autenticado automáticamente. En adelante, usa **Iniciar sesión** con tu username y contraseña.
+
+> Las tablas `usuario` y `audit_log` deben existir previamente (paso 4.3). Cada registro, login y logout queda asentado en `audit_log`.
 
 ---
 
@@ -407,6 +431,18 @@ La base de datos no fue creada. Ejecuta:
 
 ```bash
 psql -U postgres -c "CREATE DATABASE xy_pharma;"
+```
+
+### Error al registrarse o iniciar sesión: `relation "usuario" does not exist`
+
+No se ejecutaron las tablas de autenticación (paso 4.3). Créalas:
+
+```bash
+# Windows
+psql -U postgres -d xy_pharma -f sql\ddl_users.sql
+
+# Ubuntu
+psql -U postgres -d xy_pharma -f sql/ddl_users.sql
 ```
 
 ### Error en Windows: `psql: command not found` (PowerShell)
@@ -475,13 +511,16 @@ sudo kill -9 <PID_ENCONTRADO>
 # 2. Descargar datos CUM/INVIMA (extractor como módulo, desde la raíz del repo)
 python -m etl.api_to_excel
 
-# 3. Crear tablas en PostgreSQL
-psql -U postgres -d xy_pharma -f sql/ddl.sql
+# 3. Crear la base de datos y TODAS las tablas
+psql -U postgres -c "CREATE DATABASE xy_pharma;"
+psql -U postgres -d xy_pharma -f sql/ddl.sql         # 5 tablas del CUM
+psql -U postgres -d xy_pharma -f sql/ddl_users.sql   # usuario + audit_log (login)
+psql -U postgres -d xy_pharma -f sql/indexes.sql     # índices
 
 # 4. Iniciar servidor
 python app_server.py
 
-# 5. Abrir en navegador
+# 5. Abrir en navegador y registrarse (rol: admin o viewer)
 #    http://localhost:8050
 ```
 
